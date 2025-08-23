@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { HomeIcon, CurrencyDollarIcon, PlusIcon, BoltIcon, ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/solid';
+// MODIFIED: Imported DocumentArrowDownIcon
+import { HomeIcon, CurrencyDollarIcon, PlusIcon, BoltIcon, ArrowRightEndOnRectangleIcon, DocumentArrowDownIcon } from '@heroicons/react/24/solid';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 interface SidebarProps {
@@ -68,6 +69,13 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onSignOut, isSidebarOpen, setIs
             <Link to="/converter" className={getLinkClass('/converter')} onClick={() => setIsSidebarOpen(false)}>
               <BoltIcon className="w-5 h-5" />
               Converter
+            </Link>
+          </li>
+          {/* NEW: Export Data link */}
+          <li>
+            <Link to="/export" className={getLinkClass('/export')} onClick={() => setIsSidebarOpen(false)}>
+              <DocumentArrowDownIcon className="w-5 h-5" />
+              Export Data
             </Link>
           </li>
         </ul>

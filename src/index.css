@@ -7,3 +7,11 @@ body {
   font-family: 'Inter', sans-serif;
   background-color: #f1f5f9;
 }
+
+.switch input:checked + .slider {
+  background-color: #4f46e5; /* indigo-600 */
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(26px);
+}

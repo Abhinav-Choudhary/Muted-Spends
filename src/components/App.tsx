@@ -6,8 +6,10 @@ import Dashboard from '../pages/Dashboard';
 import Transactions from '../pages/Transactions';
 import AddTransaction from '../pages/AddTransaction';
 import Converter from '../pages/Converter';
+import Export from '../pages/Export';
 import EditTransactionModal from './EditTransactionModal';
 import Toast from './Toast';
+import { useCurrency } from '../context/CurrencyContext'; // Import the hook
 import type { User as FirebaseUser } from 'firebase/auth';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -34,10 +36,12 @@ const App = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const location = useLocation();
+  const { currentCurrency, handleCurrencyToggle } = useCurrency();
 
   const getPageTitle = (pathname: string) => {
     const page = pathname.replace('/', '');
     if (!page || page === 'dashboard') return 'Dashboard';
+    if (page === 'add') return 'Add Transaction';
     return page.charAt(0).toUpperCase() + page.slice(1);
   };
 
@@ -123,6 +127,14 @@ const App = () => {
                     <h1 className="text-3xl font-bold text-slate-900 flex-grow">
                         {getPageTitle(location.pathname)}
                     </h1>
+                    <div className="flex items-center gap-2 text-sm font-medium ml-auto">
+                        <span className={`${currentCurrency === 'USD' ? 'text-indigo-600' : 'text-slate-400'}`}>USD</span>
+                        <label className="switch relative inline-block w-12 h-6">
+                            <input type="checkbox" className="opacity-0 w-0 h-0" checked={currentCurrency === 'INR'} onChange={handleCurrencyToggle} />
+                            <span className="slider absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 rounded-full transition-colors duration-200 before:absolute before:content-[''] before:h-4 before:w-4 before:left-1 before:bottom-1 before:bg-white before:rounded-full before:transition-transform before:duration-200"></span>
+                        </label>
+                        <span className={`${currentCurrency === 'INR' ? 'text-indigo-600' : 'text-slate-400'}`}>INR</span>
+                    </div>
                 </header>
                 <main className="flex-1 p-6 sm:p-8 lg:p-10 overflow-y-auto">
                     <Routes>
@@ -131,6 +143,7 @@ const App = () => {
                         <Route path="/transactions" element={<Transactions onEdit={handleEditTransaction} showToast={showToast} />} />
                         <Route path="/add" element={<AddTransaction showToast={showToast} />} />
                         <Route path="/converter" element={<Converter />} />
+                        <Route path="/export" element={<Export />} />
                     </Routes>
                 </main>
             </div>

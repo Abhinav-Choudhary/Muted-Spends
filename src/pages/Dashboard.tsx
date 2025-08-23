@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { listenToTransactions, type Transaction } from '../services/firebaseService';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { formatCurrency, categoryColors, paymentColors } from '../utils/helpers';
+import { useCurrency } from '../context/CurrencyContext';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 const Dashboard: React.FC = () => {
@@ -9,11 +10,10 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [totalExpenses, setTotalExpenses] = useState<number>(0);
-  const [currentCurrency, setCurrentCurrency] = useState<string>('USD');
-  const [usdToInrRate, setUsdToInrRate] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [monthlySpending, setMonthlySpending] = useState<any[]>([]);
+  const { currentCurrency, usdToInrRate } = useCurrency();
 
   const allMonths = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   
@@ -21,32 +21,16 @@ const Dashboard: React.FC = () => {
   const allYears = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
 
   useEffect(() => {
-    const fetchExchangeRate = async () => {
-      try {
-        const response = await fetch('https://api.frankfurter.app/latest?from=USD&to=INR');
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
-        setUsdToInrRate(data.rates.INR);
-      } catch (error) {
-        console.error("Failed to fetch exchange rate:", error);
-      }
-    };
-    fetchExchangeRate();
-  }, []);
-
-  useEffect(() => {
     setLoading(true);
-    // Fetch all transactions for the selected year to calculate monthly spending
     const unsubscribe = listenToTransactions((fetchedTransactions) => {
       setTransactions(fetchedTransactions);
       setLoading(false);
-    }, selectedYear, 'all'); // Always fetch all months for the selected year
+    }, selectedYear, 'all');
 
     return () => unsubscribe();
   }, [selectedYear]);
 
   useEffect(() => {
-    // Filter transactions based on selected month for summary cards
     const filteredTransactions = selectedMonth === 'all' 
         ? transactions 
         : transactions.filter(t => t.timestamp.toDate().getMonth() + 1 === parseInt(selectedMonth));
@@ -56,7 +40,6 @@ const Dashboard: React.FC = () => {
     setTotalIncome(income);
     setTotalExpenses(expenses);
     
-    // Calculate monthly spending for the bar chart
     const monthlyData = Array.from({ length: 12 }, (_, i) => ({
       name: new Date(0, i).toLocaleString('en-US', { month: 'short' }),
       Expenses: 0,
@@ -91,10 +74,6 @@ const Dashboard: React.FC = () => {
         return acc;
       }, {})
   ).map(([name, value]) => ({ name, value }));
-
-  const handleCurrencyToggle = () => {
-    setCurrentCurrency(prev => prev === 'USD' ? 'INR' : 'USD');
-  };
 
   if (loading) {
     return (
@@ -132,14 +111,6 @@ const Dashboard: React.FC = () => {
             ))}
           </select>
         </div>
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <span className={`${currentCurrency === 'USD' ? 'text-indigo-600' : 'text-slate-400'}`}>USD</span>
-          <label className="switch relative inline-block w-12 h-6">
-            <input type="checkbox" className="opacity-0 w-0 h-0" checked={currentCurrency === 'INR'} onChange={handleCurrencyToggle} />
-            <span className="slider absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 rounded-full transition-colors duration-200 before:absolute before:content-[''] before:h-4 before:w-4 before:left-1 before:bottom-1 before:bg-white before:rounded-full before:transition-transform before:duration-200 checked:bg-indigo-600 checked:before:translate-x-6"></span>
-          </label>
-          <span className={`${currentCurrency === 'INR' ? 'text-indigo-600' : 'text-slate-400'}`}>INR</span>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -157,7 +128,6 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* MODIFIED: Wrapped all charts in a single grid for better layout control */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
           <h2 className="text-xl font-bold mb-4">Spending by Category</h2>
@@ -176,15 +146,21 @@ const Dashboard: React.FC = () => {
                 </ResponsiveContainer>
               </div>
               <div className="space-y-2">
-                {expenseDataByCategory.map((entry, index) => (
-                  <div key={index} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors[entry.name] || '#94a3b8' }}></span>
-                      <span>{entry.name}</span>
+                {expenseDataByCategory.map((entry, index) => {
+                  const percentage = totalIncome > 0 ? ((entry.value / totalIncome) * 100).toFixed(1) : 0;
+                  return (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors[entry.name] || '#94a3b8' }}></span>
+                        <span>{entry.name}</span>
+                      </div>
+                      <div className="font-semibold">
+                        {formatCurrency(entry.value, currentCurrency, usdToInrRate)}
+                        <span className="text-slate-500 ml-2">({percentage}%)</span>
+                      </div>
                     </div>
-                    <span className="font-semibold">{formatCurrency(entry.value, currentCurrency, usdToInrRate)}</span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           ) : (
@@ -209,15 +185,20 @@ const Dashboard: React.FC = () => {
                 </ResponsiveContainer>
               </div>
               <div className="space-y-2">
-                {expenseDataByPaymentMethod.map((entry, index) => (
+                {expenseDataByPaymentMethod.map((entry, index) => {
+                  const percentage = totalIncome > 0 ? ((entry.value / totalIncome) * 100).toFixed(1) : 0;
+                  return (
                   <div key={index} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full" style={{ backgroundColor: paymentColors[entry.name] || '#A0AEC0' }}></span>
                       <span>{entry.name}</span>
                     </div>
-                    <span className="font-semibold">{formatCurrency(entry.value, currentCurrency, usdToInrRate)}</span>
+                    <div className="font-semibold">
+                        {formatCurrency(entry.value, currentCurrency, usdToInrRate)}
+                        <span className="text-slate-500 ml-2">({percentage}%)</span>
+                      </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           ) : (
@@ -225,7 +206,6 @@ const Dashboard: React.FC = () => {
           )}
         </div>
         
-        {/* MODIFIED: Monthly Spending chart now spans the full width on large screens */}
         <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200 lg:col-span-2">
             <h2 className="text-xl font-bold mb-4">Monthly Spending ({selectedYear})</h2>
             <div className="relative h-96 w-full">
