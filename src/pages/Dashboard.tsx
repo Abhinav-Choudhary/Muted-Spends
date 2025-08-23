@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { listenToTransactions, type Transaction } from '../services/firebaseService';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { formatCurrency, categoryColors, paymentColors } from '../utils/helpers';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -11,11 +11,14 @@ const Dashboard: React.FC = () => {
   const [totalExpenses, setTotalExpenses] = useState<number>(0);
   const [currentCurrency, setCurrentCurrency] = useState<string>('USD');
   const [usdToInrRate, setUsdToInrRate] = useState<number | null>(null);
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [monthlySpending, setMonthlySpending] = useState<any[]>([]);
 
   const allMonths = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
-  const allYears = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - 2 + i).toString());
+  
+  const currentYear = new Date().getFullYear();
+  const allYears = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
 
   useEffect(() => {
     const fetchExchangeRate = async () => {
@@ -33,24 +36,45 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
+    // Fetch all transactions for the selected year to calculate monthly spending
     const unsubscribe = listenToTransactions((fetchedTransactions) => {
       setTransactions(fetchedTransactions);
       setLoading(false);
-    }, selectedYear, selectedMonth);
+    }, selectedYear, 'all'); // Always fetch all months for the selected year
 
     return () => unsubscribe();
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear]);
 
   useEffect(() => {
-    const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    // Filter transactions based on selected month for summary cards
+    const filteredTransactions = selectedMonth === 'all' 
+        ? transactions 
+        : transactions.filter(t => t.timestamp.toDate().getMonth() + 1 === parseInt(selectedMonth));
+
+    const income = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const expenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     setTotalIncome(income);
     setTotalExpenses(expenses);
-  }, [transactions]);
+    
+    // Calculate monthly spending for the bar chart
+    const monthlyData = Array.from({ length: 12 }, (_, i) => ({
+      name: new Date(0, i).toLocaleString('en-US', { month: 'short' }),
+      Expenses: 0,
+    }));
+
+    transactions.forEach(t => {
+      if (t.type === 'expense') {
+        const monthIndex = t.timestamp.toDate().getMonth();
+        monthlyData[monthIndex].Expenses += t.amount;
+      }
+    });
+    setMonthlySpending(monthlyData);
+
+  }, [transactions, selectedMonth]);
 
   const expenseDataByCategory = Object.entries(
     transactions
-      .filter(t => t.type === 'expense')
+      .filter(t => t.type === 'expense' && (selectedMonth === 'all' || t.timestamp.toDate().getMonth() + 1 === parseInt(selectedMonth)))
       .reduce<Record<string, number>>((acc, t) => {
         const category = t.category || 'Misc';
         acc[category] = (acc[category] || 0) + t.amount;
@@ -60,7 +84,7 @@ const Dashboard: React.FC = () => {
 
   const expenseDataByPaymentMethod = Object.entries(
     transactions
-      .filter(t => t.type === 'expense')
+      .filter(t => t.type === 'expense' && (selectedMonth === 'all' || t.timestamp.toDate().getMonth() + 1 === parseInt(selectedMonth)))
       .reduce<Record<string, number>>((acc, t) => {
         const method = t.paymentMethod || 'Other';
         acc[method] = (acc[method] || 0) + t.amount;
@@ -91,7 +115,6 @@ const Dashboard: React.FC = () => {
             }}
             className="bg-white border border-slate-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
           >
-            <option value="all">All Years</option>
             {allYears.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
@@ -134,6 +157,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* MODIFIED: Wrapped all charts in a single grid for better layout control */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
           <h2 className="text-xl font-bold mb-4">Spending by Category</h2>
@@ -199,6 +223,23 @@ const Dashboard: React.FC = () => {
           ) : (
             <p className="text-slate-500 text-center py-10">No payment method data for this period.</p>
           )}
+        </div>
+        
+        {/* MODIFIED: Monthly Spending chart now spans the full width on large screens */}
+        <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200 lg:col-span-2">
+            <h2 className="text-xl font-bold mb-4">Monthly Spending ({selectedYear})</h2>
+            <div className="relative h-96 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlySpending} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" />
+                        <YAxis tickFormatter={(value) => formatCurrency(value as number, currentCurrency, usdToInrRate).replace(/\..*$/, '')} />
+                        <Tooltip formatter={(value: number) => formatCurrency(value, currentCurrency, usdToInrRate)} />
+                        <Legend />
+                        <Bar dataKey="Expenses" fill="#4f46e5" />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
         </div>
       </div>
     </div>

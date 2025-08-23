@@ -1,145 +1,191 @@
-import { useState, useEffect } from 'react';
-import { listenToTransactions, deleteTransaction, type Transaction } from '../services/firebaseService';
-import { formatCurrency } from '../utils/helpers';
-import { TrashIcon, CurrencyDollarIcon, HomeIcon } from '@heroicons/react/24/solid';
-import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useState } from 'react';
+import { addTransaction, uploadReceipt, type AddTransactionData } from '../services/firebaseService';
 
-const Transactions: React.FC = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [selectedYear, setSelectedYear] = useState<string>('all');
-  const [selectedMonth, setSelectedMonth] = useState<string>('all');
-  const [usdToInrRate, setUsdToInrRate] = useState<number | null>(null);
-  const [currentCurrency, setCurrentCurrency] = useState<string>('USD');
+interface AddTransactionProps {
+  showToast: (message: string, type: 'income' | 'expense') => void;
+}
 
-  useEffect(() => {
-    const fetchExchangeRate = async () => {
-      try {
-        const response = await fetch('https://api.frankfurter.app/latest?from=USD&to=INR');
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
-        setUsdToInrRate(data.rates.INR);
-      } catch (error) {
-        console.error("Failed to fetch exchange rate:", error);
+const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
+  const [activeForm, setActiveForm] = useState<'income' | 'expense'>('expense');
+  
+  // Form state
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [category, setCategory] = useState('Groceries');
+  const [paymentMethod, setPaymentMethod] = useState('Amex Credit Card');
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const resetForm = () => {
+    setDescription('');
+    setAmount('');
+    setDate(new Date().toISOString().split('T')[0]);
+    setCategory('Groceries');
+    setPaymentMethod('Amex Credit Card');
+    setReceipt(null);
+    // This will clear the file input visually
+    const fileInput = document.getElementById('receipt') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!description || !amount || !date) {
+      alert('Please fill out all required fields.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    let receiptUrl = '';
+
+    try {
+      if (receipt) {
+        receiptUrl = await uploadReceipt(receipt);
       }
-    };
-    fetchExchangeRate();
-  }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    const unsubscribe = listenToTransactions((fetchedTransactions) => {
-      setTransactions(fetchedTransactions);
-      setLoading(false);
-    }, selectedYear, selectedMonth);
+      const transactionData: AddTransactionData = {
+        description,
+        amount: parseFloat(amount),
+        date,
+        type: activeForm,
+        category: activeForm === 'expense' ? category : '',
+        paymentMethod: activeForm === 'expense' ? paymentMethod : '',
+        receiptUrl,
+      };
 
-    return () => unsubscribe();
-  }, [selectedYear, selectedMonth]);
+      await addTransaction(transactionData);
+      
+      // MODIFIED: Show toast instead of navigating
+      showToast(
+        activeForm === 'income' ? 'Income added successfully!' : 'Expense added successfully!',
+        activeForm === 'income' ? 'income' : 'expense'
+      );
+      resetForm();
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this transaction?")) {
-      try {
-        await deleteTransaction(id);
-      } catch (error) {
-        console.error("Error deleting document:", error);
-      }
+    } catch (error) {
+      console.error("Error saving transaction:", error);
+      showToast('Failed to save transaction.', 'expense');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const allMonths = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
-  const allYears = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - 2 + i).toString());
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[500px]">
-        <ArrowPathIcon className="h-16 w-16 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between mb-8">
-        <div className="flex items-center gap-4 mb-4 sm:mb-0">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="bg-white border border-slate-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="all">All Years</option>
-            {allYears.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-white border border-slate-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="all">All Months</option>
-            {allMonths.map(month => (
-              <option key={month} value={month}>
-                {new Date(2024, Number(month) - 1, 1).toLocaleString('en-US', { month: 'long' })}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <span className={`${currentCurrency === 'USD' ? 'text-indigo-600' : 'text-slate-400'}`}>USD</span>
-          <label className="switch relative inline-block w-12 h-6">
-            <input type="checkbox" className="opacity-0 w-0 h-0" checked={currentCurrency === 'INR'} onChange={() => setCurrentCurrency(prev => prev === 'USD' ? 'INR' : 'USD')} />
-            <span className="slider absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 rounded-full transition-colors duration-200 before:absolute before:content-[''] before:h-4 before:w-4 before:left-1 before:bottom-1 before:bg-white before:rounded-full before:transition-transform before:duration-200 checked:bg-indigo-600 checked:before:translate-x-6"></span>
-          </label>
-          <span className={`${currentCurrency === 'INR' ? 'text-indigo-600' : 'text-slate-400'}`}>INR</span>
-        </div>
+    <div className="bg-white p-6 sm:p-8 rounded-xl shadow-md border border-slate-200 max-w-lg mx-auto">
+      <h2 className="text-xl font-bold mb-6">Add New Transaction</h2>
+      
+      <div className="flex border-b border-slate-200 mb-6">
+        <button 
+          onClick={() => setActiveForm('expense')}
+          className={`px-4 py-2 text-sm font-medium ${activeForm === 'expense' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500'}`}
+        >
+          Expense
+        </button>
+        <button 
+          onClick={() => setActiveForm('income')}
+          className={`px-4 py-2 text-sm font-medium ${activeForm === 'income' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500'}`}
+        >
+          Income
+        </button>
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-        <div className="grid grid-cols-4 gap-4 px-4 pb-3 border-b border-slate-200 mb-2 font-semibold text-slate-600 text-sm">
-          <div className="col-span-2">DESCRIPTION</div>
-          <div className="text-right">AMOUNT</div>
-          <div className="text-right">ACTIONS</div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-slate-700">
+            {activeForm === 'income' ? 'Source' : 'Description'}
+          </label>
+          <input
+            type="text"
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            required
+          />
         </div>
-        {transactions.length > 0 ? (
-          transactions.map((t) => (
-            <div key={t.id} className="grid grid-cols-4 gap-2 items-center p-4 rounded-lg hover:bg-slate-50 transition-colors">
-              <div className="col-span-2 flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${t.type === 'expense' ? 'bg-red-100' : 'bg-green-100'}`}>
-                  {t.type === 'expense' ? (
-                    <CurrencyDollarIcon className="h-5 w-5 text-red-500" />
-                  ) : (
-                    <HomeIcon className="h-5 w-5 text-green-500" />
-                  )}
-                </div>
-                <div className="flex-grow min-w-0">
-                  <p className="font-semibold text-slate-800 break-words">{t.description}</p>
-                  <p className="text-sm text-slate-500">
-                    {t.timestamp?.toDate().toLocaleDateString()} &bull; {t.type === 'expense' ? t.category : 'Income'}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className={`font-bold text-base ${t.type === 'expense' ? 'text-red-600' : 'text-green-600'}`}>
-                  {t.type === 'expense' ? '-' : '+'} {formatCurrency(t.amount, currentCurrency, usdToInrRate)}
-                </p>
-              </div>
-              <div className="col-span-1 text-right flex justify-end items-center gap-1">
-                <button
-                  onClick={() => handleDelete(t.id)}
-                  className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100"
-                  title="Delete Transaction"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
-              </div>
+
+        <div>
+          <label htmlFor="amount" className="block text-sm font-medium text-slate-700">Amount</label>
+          <input
+            type="number"
+            id="amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            required
+            step="0.01"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="date" className="block text-sm font-medium text-slate-700">Date</label>
+          <input
+            type="date"
+            id="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            required
+          />
+        </div>
+
+        {activeForm === 'expense' && (
+          <>
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-slate-700">Category</label>
+              <select
+                id="category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option>Groceries</option>
+                <option>Dining</option>
+                <option>Travel</option>
+                <option>Rent</option>
+                <option>Bills</option>
+                <option>Misc</option>
+              </select>
             </div>
-          ))
-        ) : (
-          <p className="text-slate-500 text-center py-10">No transactions yet.</p>
+            <div>
+              <label htmlFor="paymentMethod" className="block text-sm font-medium text-slate-700">Payment Method</label>
+               <select
+                id="payment-method"
+                value={paymentMethod}
+                onChange={e => setPaymentMethod(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option>Amex Credit Card</option>
+                <option>Zolve Mastercard</option>
+                <option>Debit Card</option>
+                <option>Apple Cash</option>
+                <option>Venmo</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="receipt" className="block text-sm font-medium text-slate-700">Receipt (Optional)</label>
+              <input
+                type="file"
+                id="receipt"
+                onChange={(e) => setReceipt(e.target.files ? e.target.files[0] : null)}
+                className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              />
+            </div>
+          </>
         )}
-      </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
+        >
+          {isSubmitting ? 'Adding...' : `Add ${activeForm.charAt(0).toUpperCase() + activeForm.slice(1)}`}
+        </button>
+      </form>
     </div>
   );
 };
 
-export default Transactions;
+export default AddTransaction;

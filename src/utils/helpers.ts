@@ -1,3 +1,5 @@
+import { Timestamp } from "firebase/firestore";
+
 export const formatCurrency = (amount: number, currency: string = 'USD', rate: number | null = null): string => {
   if (isNaN(amount)) {
     return 'N/A';
@@ -8,6 +10,27 @@ export const formatCurrency = (amount: number, currency: string = 'USD', rate: n
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(convertedAmount);
   }
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(formattedAmount);
+};
+
+// MODIFIED: Changed date format to "Month Day, Year"
+export const formatTimestampForDisplay = (timestamp: Timestamp): string => {
+  if (!timestamp || typeof timestamp.toDate !== 'function') {
+    return 'Invalid Date';
+  }
+  return timestamp.toDate().toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC' // Specify timezone to prevent off-by-one errors
+  });
+};
+
+export const formatTimestampForInput = (timestamp: Timestamp): string => {
+    if (!timestamp || !timestamp.toDate) return '';
+    const date = timestamp.toDate();
+    const timezoneOffset = date.getTimezoneOffset() * 60000;
+    const adjustedDate = new Date(date.getTime() - timezoneOffset);
+    return adjustedDate.toISOString().split('T')[0];
 };
 
 interface ColorMap {

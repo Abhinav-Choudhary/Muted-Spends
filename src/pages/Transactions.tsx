@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { listenToTransactions, deleteTransaction, type Transaction } from '../services/firebaseService';
-import { formatCurrency } from '../utils/helpers';
-import { TrashIcon, CurrencyDollarIcon, HomeIcon } from '@heroicons/react/24/solid';
+import { formatCurrency, formatTimestampForDisplay } from '../utils/helpers';
+import { TrashIcon, CurrencyDollarIcon, PencilIcon, ArrowTrendingUpIcon, DocumentTextIcon } from '@heroicons/react/24/solid';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
-const Transactions: React.FC = () => {
+interface TransactionsProps {
+  onEdit: (transaction: Transaction) => void;
+  showToast: (message: string, type: 'income' | 'expense') => void;
+}
+
+const Transactions: React.FC<TransactionsProps> = ({ onEdit, showToast }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -40,14 +45,24 @@ const Transactions: React.FC = () => {
     if (window.confirm("Are you sure you want to delete this transaction?")) {
       try {
         await deleteTransaction(id);
+        showToast('Transaction deleted successfully!', 'expense');
       } catch (error) {
         console.error("Error deleting document:", error);
+        showToast('Failed to delete transaction.', 'expense');
       }
     }
   };
 
-  const allMonths = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
-  const allYears = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - 2 + i).toString());
+  const handleViewReceipt = (transaction: Transaction) => {
+    if (transaction.receiptUrl) {
+      window.open(transaction.receiptUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      showToast('No receipt found for this transaction.', 'expense');
+    }
+  };
+
+  const currentYear = new Date().getFullYear();
+  const allYears = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
 
   if (loading) {
     return (
@@ -77,7 +92,7 @@ const Transactions: React.FC = () => {
             className="bg-white border border-slate-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="all">All Months</option>
-            {allMonths.map(month => (
+            {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(month => (
               <option key={month} value={month}>
                 {new Date(2024, Number(month) - 1, 1).toLocaleString('en-US', { month: 'long' })}
               </option>
@@ -95,35 +110,53 @@ const Transactions: React.FC = () => {
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-        <div className="grid grid-cols-4 gap-4 px-4 pb-3 border-b border-slate-200 mb-2 font-semibold text-slate-600 text-sm">
-          <div className="col-span-2">DESCRIPTION</div>
-          <div className="text-right">AMOUNT</div>
-          <div className="text-right">ACTIONS</div>
+        {/* MODIFIED: Changed grid layout to 6 columns for better spacing */}
+        <div className="grid grid-cols-6 gap-4 px-4 pb-3 border-b border-slate-200 mb-2 font-semibold text-slate-600 text-sm">
+          <div className="col-span-3">DESCRIPTION</div>
+          <div className="col-span-1 text-right">AMOUNT</div>
+          <div className="col-span-2 text-right">ACTIONS</div>
         </div>
         {transactions.length > 0 ? (
           transactions.map((t) => (
-            <div key={t.id} className="grid grid-cols-4 gap-2 items-center p-4 rounded-lg hover:bg-slate-50 transition-colors">
-              <div className="col-span-2 flex items-center gap-4">
+            // MODIFIED: Changed grid layout to 6 columns for better spacing
+            <div key={t.id} className="grid grid-cols-6 gap-2 items-center p-4 rounded-lg hover:bg-slate-50 transition-colors">
+              <div className="col-span-3 flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${t.type === 'expense' ? 'bg-red-100' : 'bg-green-100'}`}>
                   {t.type === 'expense' ? (
                     <CurrencyDollarIcon className="h-5 w-5 text-red-500" />
                   ) : (
-                    <HomeIcon className="h-5 w-5 text-green-500" />
+                    <ArrowTrendingUpIcon className="h-5 w-5 text-green-500" />
                   )}
                 </div>
                 <div className="flex-grow min-w-0">
                   <p className="font-semibold text-slate-800 break-words">{t.description}</p>
                   <p className="text-sm text-slate-500">
-                    {t.timestamp?.toDate().toLocaleDateString()} &bull; {t.type === 'expense' ? t.category : 'Income'}
+                    {formatTimestampForDisplay(t.timestamp)} &bull; {t.type === 'expense' ? t.category : 'Income'}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="col-span-1 text-right">
                 <p className={`font-bold text-base ${t.type === 'expense' ? 'text-red-600' : 'text-green-600'}`}>
                   {t.type === 'expense' ? '-' : '+'} {formatCurrency(t.amount, currentCurrency, usdToInrRate)}
                 </p>
               </div>
-              <div className="col-span-1 text-right flex justify-end items-center gap-1">
+              <div className="col-span-2 text-right flex justify-end items-center gap-1">
+                 {t.type === 'expense' && (
+                    <button
+                        onClick={() => handleViewReceipt(t)}
+                        className="p-1 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-100"
+                        title="View Receipt"
+                    >
+                        <DocumentTextIcon className="h-5 w-5" />
+                    </button>
+                 )}
+                 <button
+                  onClick={() => onEdit(t)}
+                  className="p-1 text-slate-400 hover:text-indigo-600 rounded-full hover:bg-indigo-100"
+                  title="Edit Transaction"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </button>
                 <button
                   onClick={() => handleDelete(t.id)}
                   className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100"

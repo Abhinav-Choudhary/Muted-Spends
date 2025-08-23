@@ -1,15 +1,11 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInWithCustomToken, signInAnonymously } from "firebase/auth";
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import type { User as FirebaseUser } from "firebase/auth";
-import { getFirestore, collection, addDoc, onSnapshot, Timestamp, deleteDoc, doc, QuerySnapshot, QueryDocumentSnapshot } from "firebase/firestore";
+import { getFirestore, collection, addDoc, onSnapshot, Timestamp, deleteDoc, doc, QuerySnapshot, QueryDocumentSnapshot, updateDoc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { Unsubscribe, DocumentData } from "firebase/firestore";
 
-declare global {
-    const __initial_auth_token: string;
-    const __app_id: string;
-}
-
-// Define a type for your transaction data
+// --- Type Definitions ---
 export interface Transaction {
     id: string;
     type: 'income' | 'expense';
@@ -18,16 +14,11 @@ export interface Transaction {
     timestamp: Timestamp;
     category?: string;
     paymentMethod?: string;
+    receiptUrl?: string;
 }
-
-// Define a type for data when adding a new transaction
 export type AddTransactionData = Omit<Transaction, 'id' | 'timestamp'> & { date: string };
 
-
-// Helper function to check for canvas environment
-const isCanvas = typeof __initial_auth_token !== 'undefined';
-
-// Your web app's Firebase configuration from .env
+// --- Firebase Configuration ---
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -38,150 +29,109 @@ const firebaseConfig = {
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
+// --- Firebase Initialization ---
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
+const provider = new GoogleAuthProvider();
 
+// --- Firestore Collection Reference ---
 const transactionsCollectionRef = (userId: string) => {
-    // The __app_id is a unique identifier for your canvas environment.
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-expense-tracker-pro';
-    
-    // Check if the environment is a canvas and adjust path accordingly
-    const path = isCanvas ? `artifacts/${appId}/users/${userId}/transactions` : `users/${userId}/transactions`;
+    const isCanvasEnvironment = typeof __app_id !== 'undefined';
+    const path = isCanvasEnvironment
+        ? `artifacts/${__app_id}/users/${userId}/transactions`
+        : `users/${userId}/transactions`;
     return collection(db, path);
 };
 
+// --- Authentication Functions ---
+export const signInWithGoogle = () => signInWithPopup(auth, provider);
+export const signOutUser = () => signOut(auth);
+export const listenToAuth = (callback: (user: FirebaseUser | null) => void): Unsubscribe => onAuthStateChanged(auth, callback);
 
-// Sign in with Google provider
-const provider = new GoogleAuthProvider();
-export const signInWithGoogle = () => {
-    signInWithPopup(auth, provider).catch((error) => {
-        console.error("Error signing in with Google:", error);
-    });
-};
 
-// Sign out function
-export const signOutUser = () => {
-    signOut(auth).catch((error) => {
-        console.error("Error signing out:", error);
-    });
-};
-
-// Function to handle authentication state
-export const listenToAuth = (callback: (user: FirebaseUser | null) => void): Unsubscribe => {
-    // Canvas-specific authentication
-    if (isCanvas) {
-        signInWithCustomToken(auth, __initial_auth_token)
-            .then(() => {
-                const user = auth.currentUser;
-                callback(user);
-            })
-            .catch(async (error) => {
-                console.error("Error signing in with custom token:", error);
-                // Fallback to anonymous sign-in if custom token fails
-                try {
-                    const user = auth.currentUser;
-                    await signInAnonymously(auth);
-                    callback(user);
-                } catch (anonError) {
-                    console.error("Error signing in anonymously:", anonError);
-                    callback(null);
-                }
-            });
-            // This is a placeholder for the unsubscribe function, as onAuthStateChanged is not
-            // called in this code path.
-            return () => {};
-    } else {
-        // Standard authentication for web
-        return onAuthStateChanged(auth, user => {
-            callback(user);
-        });
-    }
-};
-
-// Listen to transactions in real-time
+// --- Firestore Functions ---
 export const listenToTransactions = (callback: (transactions: Transaction[]) => void, selectedYear: string, selectedMonth: string): Unsubscribe => {
     const user = auth.currentUser;
     if (!user) {
         callback([]);
-        return () => {}; // Return a no-op unsubscribe function
+        return () => {};
     }
 
     const colRef = transactionsCollectionRef(user.uid);
-
-    // Use onSnapshot to get real-time updates
-    const unsubscribe = onSnapshot(colRef, (snapshot: QuerySnapshot<DocumentData>) => {
-        const transactions: Transaction[] = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
+    return onSnapshot(colRef, (snapshot: QuerySnapshot<DocumentData>) => {
+        const transactions = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
             id: doc.id,
             ...doc.data(),
-            // Ensure timestamp is properly typed
             timestamp: doc.data().timestamp as Timestamp,
         })) as Transaction[];
 
-        // Sort in memory to avoid Firestore index issues
-        transactions.sort((a, b) => {
-            const dateA = a.timestamp?.toDate() || new Date(0);
-            const dateB = b.timestamp?.toDate() || new Date(0);
-            return dateB.getTime() - dateA.getTime();
-        });
+        const filteredAndSorted = transactions
+            .filter(t => {
+                const date = t.timestamp?.toDate();
+                if (!date) return false;
+                const yearMatch = selectedYear === 'all' || date.getFullYear().toString() === selectedYear;
+                const monthMatch = selectedMonth === 'all' || (date.getMonth() + 1).toString().padStart(2, '0') === selectedMonth;
+                return yearMatch && monthMatch;
+            })
+            .sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
 
-        // Filter in memory to handle combined month/year selection
-        const filteredTransactions = transactions.filter(t => {
-            const date = t.timestamp?.toDate();
-            if (!date) return false;
-
-            const transYear = date.getFullYear().toString();
-            const transMonth = (date.getMonth() + 1).toString().padStart(2, '0');
-
-            // If a year is selected but no month, show all transactions for that year.
-            const yearMatch = selectedYear === 'all' || transYear === selectedYear;
-
-            // If a month is selected, or if 'all' is selected for both, show all.
-            const monthMatch = selectedMonth === 'all' || transMonth === selectedMonth;
-
-            return yearMatch && monthMatch;
-        });
-
-        callback(filteredTransactions);
-
+        callback(filteredAndSorted);
     }, (error) => {
         console.error("Error listening to transactions:", error);
     });
-
-    return unsubscribe;
 };
 
-export const addTransaction = async (data: AddTransactionData) => {
+export const addTransaction = (data: AddTransactionData) => {
     const user = auth.currentUser;
-    if (!user) {
-        throw new Error("User not authenticated.");
-    }
+    if (!user) return Promise.reject("User not authenticated.");
+
     const colRef = transactionsCollectionRef(user.uid);
 
-    try {
-        await addDoc(colRef, {
-            ...data,
-            timestamp: Timestamp.fromDate(new Date(data.date)),
-        });
-    } catch (error) {
-        console.error("Error adding transaction:", error);
-        throw error;
-    }
+    // Create a date object from the user's input string (e.g., "2025-08-23")
+    const userDate = new Date(data.date + 'T00:00:00');
+
+    // Get the current time
+    const now = new Date();
+
+    // Combine the user's selected date with the current time to ensure correct sorting
+    const combinedDate = new Date(
+        userDate.getFullYear(),
+        userDate.getMonth(),
+        userDate.getDate(),
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds()
+    );
+
+    return addDoc(colRef, {
+        ...data,
+        timestamp: Timestamp.fromDate(combinedDate),
+    });
 };
 
-export const deleteTransaction = async (id: string) => {
+export const updateTransaction = (id: string, data: Partial<Omit<Transaction, 'id'>>) => {
     const user = auth.currentUser;
-    if (!user) {
-        throw new Error("User not authenticated.");
-    }
-    
-    const docRef = doc(transactionsCollectionRef(user.uid), id);
+    if (!user) return Promise.reject("User not authenticated.");
 
-    try {
-        await deleteDoc(docRef);
-    } catch (error) {
-        console.error("Error deleting transaction:", error);
-        throw error;
-    }
+    const docRef = doc(transactionsCollectionRef(user.uid), id);
+    return updateDoc(docRef, data);
+};
+
+export const deleteTransaction = (id: string) => {
+    const user = auth.currentUser;
+    if (!user) return Promise.reject("User not authenticated.");
+
+    const docRef = doc(transactionsCollectionRef(user.uid), id);
+    return deleteDoc(docRef);
+};
+
+export const uploadReceipt = async (file: File): Promise<string> => {
+  const user = auth.currentUser;
+  if (!user) throw new Error("User not authenticated.");
+
+  const storageRef = ref(storage, `receipts/${user.uid}/${Date.now()}_${file.name}`);
+  await uploadBytes(storageRef, file);
+  return getDownloadURL(storageRef);
 };
