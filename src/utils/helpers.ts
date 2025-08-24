@@ -21,20 +21,20 @@ export const formatTimestampForDisplay = (timestamp: Timestamp): string => {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-    timeZone: 'UTC' // Specify timezone to prevent off-by-one errors
   });
 };
 
 export const formatTimestampForInput = (timestamp: Timestamp): string => {
-    if (!timestamp || !timestamp.toDate) return '';
-    const date = timestamp.toDate();
-    const timezoneOffset = date.getTimezoneOffset() * 60000;
-    const adjustedDate = new Date(date.getTime() - timezoneOffset);
-    return adjustedDate.toISOString().split('T')[0];
+  if (!timestamp || !timestamp.toDate) return '';
+  const date = timestamp.toDate();
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 interface ColorMap {
-    [key: string]: string;
+  [key: string]: string;
 }
 
 export const categoryColors: ColorMap = {
