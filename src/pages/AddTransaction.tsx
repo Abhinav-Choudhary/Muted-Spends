@@ -7,11 +7,18 @@ interface AddTransactionProps {
 
 const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
   const [activeForm, setActiveForm] = useState<'income' | 'expense'>('expense');
-  
+
+  const getLocalDate = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    const adjustedDate = new Date(now.getTime() - (offset * 60 * 1000));
+    return adjustedDate.toISOString().split('T')[0];
+  }
+
   // Form state
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDate());
   const [category, setCategory] = useState('Groceries');
   const [paymentMethod, setPaymentMethod] = useState('Amex Credit Card');
   const [receipt, setReceipt] = useState<File | null>(null);
@@ -55,7 +62,7 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
       };
 
       await addTransaction(transactionData);
-      
+
       // MODIFIED: Show toast instead of navigating
       showToast(
         activeForm === 'income' ? 'Income added successfully!' : 'Expense added successfully!',
@@ -74,15 +81,15 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
   return (
     <div className="bg-white p-6 sm:p-8 rounded-xl shadow-md border border-slate-200 max-w-lg mx-auto">
       <h2 className="text-xl font-bold mb-6">Add New Transaction</h2>
-      
+
       <div className="flex border-b border-slate-200 mb-6">
-        <button 
+        <button
           onClick={() => setActiveForm('expense')}
           className={`px-4 py-2 text-sm font-medium ${activeForm === 'expense' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500'}`}
         >
           Expense
         </button>
-        <button 
+        <button
           onClick={() => setActiveForm('income')}
           className={`px-4 py-2 text-sm font-medium ${activeForm === 'income' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500'}`}
         >
@@ -150,7 +157,7 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
             </div>
             <div>
               <label htmlFor="paymentMethod" className="block text-sm font-medium text-slate-700">Payment Method</label>
-               <select
+              <select
                 id="payment-method"
                 value={paymentMethod}
                 onChange={e => setPaymentMethod(e.target.value)}

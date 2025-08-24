@@ -56,7 +56,7 @@ export const listenToTransactions = (callback: (transactions: Transaction[]) => 
     const user = auth.currentUser;
     if (!user) {
         callback([]);
-        return () => {};
+        return () => { };
     }
 
     const colRef = transactionsCollectionRef(user.uid);
@@ -89,8 +89,10 @@ export const addTransaction = (data: AddTransactionData) => {
 
     const colRef = transactionsCollectionRef(user.uid);
 
-    // Create a date object from the user's input string (e.g., "2025-08-23")
-    const userDate = new Date(data.date + 'T00:00:00');
+    // MODIFIED: Create a date object from the user's input string in the local timezone
+    const [year, month, day] = data.date.split('-').map(s => parseInt(s, 10));
+    const userDate = new Date(year, month - 1, day);
+
 
     // Get the current time
     const now = new Date();
@@ -111,6 +113,7 @@ export const addTransaction = (data: AddTransactionData) => {
     });
 };
 
+
 export const updateTransaction = (id: string, data: Partial<Omit<Transaction, 'id'>>) => {
     const user = auth.currentUser;
     if (!user) return Promise.reject("User not authenticated.");
@@ -128,10 +131,10 @@ export const deleteTransaction = (id: string) => {
 };
 
 export const uploadReceipt = async (file: File): Promise<string> => {
-  const user = auth.currentUser;
-  if (!user) throw new Error("User not authenticated.");
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated.");
 
-  const storageRef = ref(storage, `receipts/${user.uid}/${Date.now()}_${file.name}`);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+    const storageRef = ref(storage, `receipts/${user.uid}/${Date.now()}_${file.name}`);
+    await uploadBytes(storageRef, file);
+    return getDownloadURL(storageRef);
 };

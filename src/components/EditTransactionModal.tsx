@@ -45,9 +45,10 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
       if (receipt) {
         receiptUrl = await uploadReceipt(receipt);
       }
-      
-      // Use the local date string directly to create the new date
-      const localDate = new Date(date + 'T00:00:00');
+
+      // MODIFIED: Use the local date string directly to create the new date
+      const [year, month, day] = date.split('-').map(s => parseInt(s, 10));
+      const localDate = new Date(year, month - 1, day);
 
       const updatedData: Partial<Transaction> = {
         description,
@@ -108,9 +109,9 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
               </select>
             </div>
             <div>
-                <label htmlFor="receipt" className="block text-sm font-medium text-slate-700">Receipt (Optional)</label>
-                <input type="file" id="receipt" onChange={(e) => setReceipt(e.target.files ? e.target.files[0] : null)} className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                {existingReceiptUrl && <a href={existingReceiptUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 hover:underline">View current receipt</a>}
+              <label htmlFor="receipt" className="block text-sm font-medium text-slate-700">Receipt (Optional)</label>
+              <input type="file" id="receipt" onChange={(e) => setReceipt(e.target.files ? e.target.files[0] : null)} className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+              {existingReceiptUrl && <a href={existingReceiptUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 hover:underline">View current receipt</a>}
             </div>
           </>
         )}

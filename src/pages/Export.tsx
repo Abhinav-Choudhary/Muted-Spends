@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { listenToTransactions, type Transaction } from '../services/firebaseService';
+import { listenToTransactions } from '../services/firebaseService';
 import * as XLSX from 'xlsx';
 
 const Export: React.FC = () => {
