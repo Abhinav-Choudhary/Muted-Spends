@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { listenToTransactions, deleteTransaction, type Transaction } from '../services/firebaseService';
 import { formatCurrency, formatTimestampForDisplay } from '../utils/helpers';
 import { useCurrency } from '../context/CurrencyContext';
-import { TrashIcon, CurrencyDollarIcon, PencilIcon, ArrowTrendingUpIcon, DocumentTextIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
+import { TrashIcon, CurrencyDollarIcon, PencilIcon, ArrowTrendingUpIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 interface TransactionsProps {
@@ -40,13 +40,13 @@ const Transactions: React.FC<TransactionsProps> = ({ onEdit, showToast }) => {
     }
   };
 
-  const handleViewReceipt = (transaction: Transaction) => {
-    if (transaction.receiptUrl) {
-      window.open(transaction.receiptUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      showToast('No receipt found for this transaction.', 'expense');
-    }
-  };
+  // const handleViewReceipt = (transaction: Transaction) => {
+  //   if (transaction.receiptUrl) {
+  //     window.open(transaction.receiptUrl, '_blank', 'noopener,noreferrer');
+  //   } else {
+  //     showToast('No receipt found for this transaction.', 'expense');
+  //   }
+  // };
 
   const currentYear = new Date().getFullYear();
   const allYears = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
@@ -134,7 +134,7 @@ const Transactions: React.FC<TransactionsProps> = ({ onEdit, showToast }) => {
                 </p>
               </div>
               <div className="col-span-2 text-right flex justify-end items-center gap-1">
-                 {t.type === 'expense' && (
+                 {/* {t.type === 'expense' && (
                     <button
                         onClick={() => handleViewReceipt(t)}
                         className="p-1 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-100"
@@ -142,7 +142,7 @@ const Transactions: React.FC<TransactionsProps> = ({ onEdit, showToast }) => {
                     >
                         <DocumentTextIcon className="h-5 w-5" />
                     </button>
-                 )}
+                 )} */}
                  <button
                   onClick={() => onEdit(t)}
                   className="p-1 text-slate-400 hover:text-indigo-600 rounded-full hover:bg-indigo-100"

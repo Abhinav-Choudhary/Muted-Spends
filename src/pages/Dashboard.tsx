@@ -11,7 +11,7 @@ const Dashboard: React.FC = () => {
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [totalExpenses, setTotalExpenses] = useState<number>(0);
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
-  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [monthlySpending, setMonthlySpending] = useState<any[]>([]);
   const { currentCurrency, usdToInrRate } = useCurrency();
 
