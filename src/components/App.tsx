@@ -9,9 +9,10 @@ import Converter from '../pages/Converter';
 import Export from '../pages/Export';
 import EditTransactionModal from './EditTransactionModal';
 import Toast from './Toast';
-import { useCurrency } from '../context/CurrencyContext'; // Import the hook
+import { useCurrency } from '../context/CurrencyContext';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import Settings from '../pages/Settings';
 
 // --- Reusable Google Icon Component ---
 const GoogleIcon = () => (
@@ -42,6 +43,7 @@ const App = () => {
     const page = pathname.replace('/', '');
     if (!page || page === 'dashboard') return 'Dashboard';
     if (page === 'add') return 'Add Transaction';
+    if (page === 'settings') return 'Settings';
     return page.charAt(0).toUpperCase() + page.slice(1);
   };
 
@@ -144,6 +146,7 @@ const App = () => {
                         <Route path="/add" element={<AddTransaction showToast={showToast} />} />
                         <Route path="/converter" element={<Converter />} />
                         <Route path="/export" element={<Export />} />
+                        <Route path="/settings" element={<Settings showToast={showToast} />} />
                     </Routes>
                 </main>
             </div>

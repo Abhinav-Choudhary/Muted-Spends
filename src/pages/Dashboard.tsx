@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { listenToTransactions, type Transaction } from '../services/firebaseService';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
-import { formatCurrency, categoryColors, paymentColors } from '../utils/helpers';
+import { formatCurrency } from '../utils/helpers';
 import { useCurrency } from '../context/CurrencyContext';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useLookups } from '../context/LookupContext';
 
 const Dashboard: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -15,6 +16,7 @@ const Dashboard: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [monthlySpending, setMonthlySpending] = useState<any[]>([]);
   const { currentCurrency, usdToInrRate } = useCurrency();
+  const { categoryColors, paymentColors, isLookupsLoading } = useLookups();
 
   const allMonths = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   
@@ -146,7 +148,7 @@ const Dashboard: React.FC = () => {
       }, {})
   ).map(([name, value]) => ({ name, value }));
 
-  if (loading) {
+  if (loading || isLookupsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[500px]">
         <ArrowPathIcon className="h-16 w-16 animate-spin text-indigo-600" />

@@ -3,6 +3,7 @@ import { updateTransaction, uploadReceipt, type Transaction } from '../services/
 import { formatTimestampForInput } from '../utils/helpers'; // Ensure this helper is imported
 import { Timestamp } from 'firebase/firestore';
 import Modal from './Modal';
+import { useLookups } from '../context/LookupContext';
 
 interface EditTransactionModalProps {
   transaction: Transaction | null;
@@ -19,6 +20,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
   const [receipt, setReceipt] = useState<File | null>(null);
   const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { categories, paymentMethods, defaultCategoryName, defaultPaymentMethodName } = useLookups();
 
   useEffect(() => {
     if (transaction) {
@@ -27,12 +29,19 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
       // MODIFIED: Use the correct helper function to format the date for the input
       setDate(formatTimestampForInput(transaction.timestamp));
       if (transaction.type === 'expense') {
-        setCategory(transaction.category || 'Groceries');
-        setPaymentMethod(transaction.paymentMethod || 'Amex Credit Card');
+        const defaultCategory = defaultCategoryName;
+        const defaultPaymentMethod = defaultPaymentMethodName;
+        setCategory(transaction.category || defaultCategory);
+        setPaymentMethod(transaction.paymentMethod || defaultPaymentMethod);
         setExistingReceiptUrl(transaction.receiptUrl || null);
+      } else {
+        // Clear expense-specific fields for income
+        setCategory('');
+        setPaymentMethod('');
+        setExistingReceiptUrl(null);
       }
     }
-  }, [transaction]);
+  }, [transaction, categories, paymentMethods, defaultCategoryName, defaultPaymentMethodName]);  // ADDED: dependencies on lookups to update if needed
 
   if (!transaction) return null;
 
@@ -89,23 +98,17 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ transaction
             <div>
               <label htmlFor="edit-category" className="block text-sm font-medium text-slate-700">Category</label>
               <select id="edit-category" value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                <option>Groceries</option>
-                <option>Dining</option>
-                <option>Travel</option>
-                <option>Rent</option>
-                <option>Bills</option>
-                <option>Misc</option>
+                {categories.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
               </select>
             </div>
             <div>
               <label htmlFor="edit-paymentMethod" className="block text-sm font-medium text-slate-700">Payment Method</label>
               <select id="edit-paymentMethod" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                <option>Amex Credit Card</option>
-                <option>Zolve Mastercard</option>
-                <option>Debit Card</option>
-                <option>Apple Cash</option>
-                <option>Venmo</option>
-                <option>Other</option>
+                {paymentMethods.map(p => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                ))}
               </select>
             </div>
             <div>

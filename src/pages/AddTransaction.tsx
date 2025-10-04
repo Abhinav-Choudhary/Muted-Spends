@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Added useEffect import
 import { addTransaction, uploadReceipt, type AddTransactionData } from '../services/firebaseService';
+import { useLookups } from '../context/LookupContext'; // NEW Import
+import { ArrowPathIcon } from '@heroicons/react/24/solid';
 
 interface AddTransactionProps {
   showToast: (message: string, type: 'income' | 'expense') => void;
@@ -7,6 +9,8 @@ interface AddTransactionProps {
 
 const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
   const [activeForm, setActiveForm] = useState<'income' | 'expense'>('expense');
+  // MODIFIED: Use default names and loading status from context
+  const { categories, paymentMethods, defaultCategoryName, defaultPaymentMethodName, isLookupsLoading } = useLookups(); 
 
   const getLocalDate = () => {
     const now = new Date();
@@ -19,17 +23,25 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(getLocalDate());
-  const [category, setCategory] = useState('Groceries');
-  const [paymentMethod, setPaymentMethod] = useState('Amex Credit Card');
+  // Set initial state to fallback or default if available.
+  const [category, setCategory] = useState('Misc');
+  const [paymentMethod, setPaymentMethod] = useState('Other');
   const [receipt, setReceipt] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Synchronize internal state with context defaults when they load or change
+  useEffect(() => {
+    setCategory(defaultCategoryName);
+    setPaymentMethod(defaultPaymentMethodName);
+  }, [defaultCategoryName, defaultPaymentMethodName]);
 
   const resetForm = () => {
     setDescription('');
     setAmount('');
     setDate(new Date().toISOString().split('T')[0]);
-    setCategory('Groceries');
-    setPaymentMethod('Amex Credit Card');
+    // Reset to dynamic default values
+    setCategory(defaultCategoryName);
+    setPaymentMethod(defaultPaymentMethodName);
     setReceipt(null);
     // This will clear the file input visually
     const fileInput = document.getElementById('receipt') as HTMLInputElement;
@@ -77,6 +89,14 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
       setIsSubmitting(false);
     }
   };
+
+  if (isLookupsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <ArrowPathIcon className="h-10 w-10 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white p-6 sm:p-8 rounded-xl shadow-md border border-slate-200 max-w-lg mx-auto">
@@ -147,12 +167,9 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
                 onChange={(e) => setCategory(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
-                <option>Groceries</option>
-                <option>Dining</option>
-                <option>Travel</option>
-                <option>Rent</option>
-                <option>Bills</option>
-                <option>Misc</option>
+                {categories.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -161,25 +178,13 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
                 id="payment-method"
                 value={paymentMethod}
                 onChange={e => setPaymentMethod(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
               >
-                <option>Amex Credit Card</option>
-                <option>Zolve Mastercard</option>
-                <option>Debit Card</option>
-                <option>Apple Cash</option>
-                <option>Venmo</option>
-                <option>Other</option>
+                {paymentMethods.map(p => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                ))}
               </select>
             </div>
-            {/* <div>
-              <label htmlFor="receipt" className="block text-sm font-medium text-slate-700">Receipt (Optional)</label>
-              <input
-                type="file"
-                id="receipt"
-                onChange={(e) => setReceipt(e.target.files ? e.target.files[0] : null)}
-                className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-              />
-            </div> */}
           </>
         )}
 

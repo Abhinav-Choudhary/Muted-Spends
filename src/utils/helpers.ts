@@ -42,27 +42,27 @@ export const formatTimestampForExport = (timestamp: Timestamp): string => {
   return `${month}/${day}/${year}`;
 };
 
-interface ColorMap {
-  [key: string]: string;
-}
+// interface ColorMap {
+//   [key: string]: string;
+// }
 
-export const categoryColors: ColorMap = {
-  'Groceries': '#4ade80',
-  'Dining': '#facc15',
-  'Travel': '#60a5fa',
-  'Rent': '#c084fc',
-  'Bills': '#f87171',
-  'Misc': '#94a3b8',
-};
+// export const categoryColors: ColorMap = {
+//   'Groceries': '#4ade80',
+//   'Dining': '#facc15',
+//   'Travel': '#60a5fa',
+//   'Rent': '#c084fc',
+//   'Bills': '#f87171',
+//   'Misc': '#94a3b8',
+// };
 
-export const paymentColors: ColorMap = {
-  'Amex Credit Card': '#2D72C0',
-  'Zolve Mastercard': '#EB001B',
-  'Debit Card': '#FF9900',
-  'Apple Cash': '#00A859',
-  'Venmo': '#008CFF',
-  'Other': '#A0AEC0',
-};
+// export const paymentColors: ColorMap = {
+//   'Amex Credit Card': '#2D72C0',
+//   'Zolve Mastercard': '#EB001B',
+//   'Debit Card': '#FF9900',
+//   'Apple Cash': '#00A859',
+//   'Venmo': '#008CFF',
+//   'Other': '#A0AEC0',
+// };
 
 export const getMonthName = (monthString: string): string => {
   const [year, month] = monthString.split('-');
