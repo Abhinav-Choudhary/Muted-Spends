@@ -33,27 +33,36 @@ export const formatTimestampForInput = (timestamp: Timestamp): string => {
   return `${year}-${month}-${day}`;
 };
 
-interface ColorMap {
-  [key: string]: string;
-}
-
-export const categoryColors: ColorMap = {
-  'Groceries': '#4ade80',
-  'Dining': '#facc15',
-  'Travel': '#60a5fa',
-  'Rent': '#c084fc',
-  'Bills': '#f87171',
-  'Misc': '#94a3b8',
+export const formatTimestampForExport = (timestamp: Timestamp): string => {
+  if (!timestamp || !timestamp.toDate) return '';
+  const date = timestamp.toDate();
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${month}/${day}/${year}`;
 };
 
-export const paymentColors: ColorMap = {
-  'Amex Credit Card': '#2D72C0',
-  'Zolve Mastercard': '#EB001B',
-  'Debit Card': '#FF9900',
-  'Apple Cash': '#00A859',
-  'Venmo': '#008CFF',
-  'Other': '#A0AEC0',
-};
+// interface ColorMap {
+//   [key: string]: string;
+// }
+
+// export const categoryColors: ColorMap = {
+//   'Groceries': '#4ade80',
+//   'Dining': '#facc15',
+//   'Travel': '#60a5fa',
+//   'Rent': '#c084fc',
+//   'Bills': '#f87171',
+//   'Misc': '#94a3b8',
+// };
+
+// export const paymentColors: ColorMap = {
+//   'Amex Credit Card': '#2D72C0',
+//   'Zolve Mastercard': '#EB001B',
+//   'Debit Card': '#FF9900',
+//   'Apple Cash': '#00A859',
+//   'Venmo': '#008CFF',
+//   'Other': '#A0AEC0',
+// };
 
 export const getMonthName = (monthString: string): string => {
   const [year, month] = monthString.split('-');

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { listenToTransactions } from '../services/firebaseService';
 import * as XLSX from 'xlsx';
+import { formatTimestampForExport } from '../utils/helpers';
 
 const Export: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -11,7 +12,7 @@ const Export: React.FC = () => {
     const unsubscribe = listenToTransactions((transactions) => {
       if (transactions.length > 0) {
         const dataToExport = transactions.map(t => ({
-          Date: t.timestamp.toDate().toLocaleDateString(),
+          Date: formatTimestampForExport(t.timestamp),
           Description: t.description,
           Amount: t.amount,
           Type: t.type,
