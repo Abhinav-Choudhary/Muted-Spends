@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { listenToCategories, listenToPaymentMethods, type LookupItem } from '../services/firebaseService';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { listenToCategories, listenToPaymentMethods } from '../services/firebaseService';
 import { listenToAuth } from '../services/firebaseService';
 
 // --- Type Definitions ---
