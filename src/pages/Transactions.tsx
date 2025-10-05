@@ -42,7 +42,7 @@ const Transactions: React.FC<TransactionsProps> = ({ onEdit, showToast }) => {
   }, [selectedYear, selectedMonth]);
 
   const handleDelete = async (id: string) => {
-    // MODIFIED: Use custom modal in place of window.confirm
+    // Use custom modal in place of window.confirm
     const confirmed = await new Promise((resolve) => {
         // Since we don't have a custom Modal for confirmation, we'll revert to 
         // a standard browser confirm for now, but log an error to indicate it should be replaced.
@@ -114,7 +114,6 @@ const Transactions: React.FC<TransactionsProps> = ({ onEdit, showToast }) => {
   return (
     <div>
       {/* Filters and Search Bar Container */}
-      {/* Container wraps both groups and uses flex-wrap/justify-start for desktop alignment */}
       <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start">
         
         {/* Date/Category/Method Filters Group */}
@@ -167,7 +166,6 @@ const Transactions: React.FC<TransactionsProps> = ({ onEdit, showToast }) => {
         </div>
         
         {/* Search Bar Group */}
-        {/* MODIFIED: Added sm:ml-auto to push the search bars to the right on desktop, aligning with the table content. */}
         <div className="flex flex-wrap gap-4 w-full sm:w-auto sm:flex-nowrap sm:ml-auto"> 
             
             {/* Search Description */}
@@ -206,8 +204,6 @@ const Transactions: React.FC<TransactionsProps> = ({ onEdit, showToast }) => {
             </div>
         </div>
       </div>
-
-      {/* Container: Retain original white background, shadow, and border */}
       <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
         {/* DESKTOP/TABLET VIEW (>= md) - Header */}
         <div className="hidden md:grid grid-cols-12 gap-4 px-4 pb-3 border-b border-slate-200 mb-2 font-semibold text-slate-600 text-sm">
@@ -227,7 +223,6 @@ const Transactions: React.FC<TransactionsProps> = ({ onEdit, showToast }) => {
                 className="flex flex-col md:grid md:grid-cols-12 gap-y-2 md:gap-y-0 md:gap-x-4 items-center py-2 px-1 hover:bg-slate-50 transition-colors 
                            border-b border-slate-200 md:border-b-0 md:py-2 md:px-4" 
                 >
-                
                 {/* MOBILE ROW 1 / DESKTOP (ICON, DESC, DATE, AMOUNT) */}
                 <div className="flex justify-between items-start w-full md:col-span-4 md:order-1 md:flex-row md:items-center">
                     {/* Left Side: ICON + DESCRIPTION/DATE */}

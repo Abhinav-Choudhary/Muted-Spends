@@ -11,7 +11,7 @@ interface SettingsPageProps {
   showToast: (message: string, type: 'income' | 'expense') => void;
 }
 
-// MODIFIED: Use the extended LookupItem with isDefault field
+// Use the extended LookupItem with isDefault field
 interface LookupItemExtended extends LookupItem {
   isDefault: boolean;
 }
@@ -92,7 +92,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ lookupType, title, nameLabe
       showToast(`${nameLabel} updated successfully!`, 'income');
       setEditingId(null);
 
-      // NEW: Show a reminder toast after saving a name change
+      // Show a reminder toast after saving a name change
       if (editingName !== item.name) {
         showToast(`Remember to run the Migration Tool for historical transactions.`, 'income');
       }
@@ -142,7 +142,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ lookupType, title, nameLabe
   return (
     <div className="space-y-8">
 
-      {/* MODIFIED: Added helper text/tooltip next to the title */}
+      {/* helper text/tooltip next to the title */}
       <h3 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
         {title}
         <span
@@ -153,12 +153,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ lookupType, title, nameLabe
         </span>
       </h3>
 
-      {/* Add New Item Form - FIX: Changed min-w-[150px] to min-w-0 on line 87 to be responsive */}
       {/* Container is always responsive, using space-y-4 for mobile and md:space-y-0 for desktop row structure */}
       <form onSubmit={handleAdd} className="space-y-4 md:space-y-0 md:flex md:items-end md:gap-4 p-4 border border-indigo-200 bg-indigo-50 rounded-lg">
-
-        {/* Category Name (Full width on mobile, takes 2/3 of space on desktop) */}
-        {/* Added md:flex-grow md:max-w-[66%] to give it proportional width on desktop */}
         <div className="w-full md:flex-grow md:max-w-[66%]">
           <label htmlFor={`new-name-${lookupType}`} className="block text-xs font-medium text-slate-700">{nameLabel}</label>
           <input
@@ -178,7 +174,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ lookupType, title, nameLabe
         <div className="flex items-end justify-between gap-4 md:flex-grow md:max-w-[34%]">
 
           {/* Color Input (Stack on mobile, but align horizontally on desktop) */}
-          {/* Removed the fixed w-16 and replaced with a responsive max-w and flex-shrink-0 */}
           <div className="flex-shrink-0 max-w-[50px] sm:max-w-[80px] w-full">
             <label htmlFor={`new-color-${lookupType}`} className="block text-xs font-medium text-slate-700">Color</label>
             <input
@@ -191,7 +186,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ lookupType, title, nameLabe
           </div>
 
           {/* Is Default Checkbox (Flexible positioning in the middle) */}
-          {/* Added md:mb-1 to vertically center it with the buttons/inputs */}
           <div className="flex items-center h-10 mb-1 flex-shrink-0 md:mb-0">
             <input
               id={`new-default-${lookupType}`}
@@ -216,12 +210,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ lookupType, title, nameLabe
       </form>
 
       {/* --- DESKTOP VIEW (Table) --- */}
-      {/* ADDED: hidden md:block to hide the table on mobile */}
       <div className="hidden md:block overflow-x-auto shadow-lg rounded-xl border border-slate-200">
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
-              {/* Resetting back to default px-6 padding and nowrap for desktop layout */}
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{nameLabel}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Color</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Default</th>
@@ -332,13 +324,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ lookupType, title, nameLabe
       </div>
 
       {/* --- MOBILE VIEW (Stacked List) --- */}
-      {/* ADDED: md:hidden to show this list ONLY on mobile */}
       <div className="md:hidden divide-y divide-slate-200 shadow-lg rounded-xl border border-slate-200">
         {currentLookups.length > 0 ? (
           currentLookups.map((item) => (
             <div key={item.id} className="p-4 bg-white hover:bg-slate-50 transition-colors">
               {editingId === item.id ? (
-                /* Mobile Edit View (Stacked form for readability) */
                 <form onSubmit={(e) => { e.preventDefault(); handleSaveEdit(item as LookupItemExtended); }} className="space-y-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-500">{nameLabel}</label>

@@ -14,6 +14,7 @@ const Dashboard: React.FC = () => {
   const [cumulativeBalance, setCumulativeBalance] = useState<number>(0); // NEW: For the running total
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [monthlySpending, setMonthlySpending] = useState<any[]>([]);
   const { currentCurrency, usdToInrRate } = useCurrency();
   const { categoryColors, paymentColors, isLookupsLoading } = useLookups();
@@ -25,7 +26,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    // MODIFIED: Always fetch all transactions (year: 'all', month: 'all') 
+    // Always fetch all transactions (year: 'all', month: 'all') 
     // to allow correct cumulative balance calculation. The sorting logic 
     // for transactions is primarily handled in the service, but we'll 
     // ensure chronological sorting for cumulative balance calculation below.
@@ -55,7 +56,7 @@ const Dashboard: React.FC = () => {
     const income = finalPeriodTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const expenses = finalPeriodTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     
-    // UPDATED: Use new state variables for period data
+    // Use new state variables for period data
     setPeriodIncome(income);
     setPeriodExpenses(expenses);
     
@@ -167,7 +168,7 @@ const Dashboard: React.FC = () => {
             }}
             className="bg-white border border-slate-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
           >
-            <option value="all">All Years</option> {/* ADDED: All Years option for cumulative view */}
+            <option value="all">All Years</option> {/* All Years option for cumulative view */}
             {allYears.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
@@ -189,17 +190,17 @@ const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-          {/* MODIFIED: Display Period Income */}
+          {/* Display Period Income */}
           <h3 className="font-semibold text-slate-500">Total Income ({selectedMonth === 'all' ? 'Year' : 'Month'})</h3>
           <p className="text-3xl font-bold text-green-600 mt-1">{formatCurrency(periodIncome, currentCurrency, usdToInrRate)}</p>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-          {/* MODIFIED: Display Period Expenses */}
+          {/* Display Period Expenses */}
           <h3 className="font-semibold text-slate-500">Total Expenses ({selectedMonth === 'all' ? 'Year' : 'Month'})</h3>
           <p className="text-3xl font-bold text-red-600 mt-1">{formatCurrency(periodExpenses, currentCurrency, usdToInrRate)}</p>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-          {/* MODIFIED: Display Cumulative Balance */}
+          {/* Display Cumulative Balance */}
           <h3 className="font-semibold text-slate-500">Current Balance (Cumulative)</h3>
           <p className="text-3xl font-bold text-indigo-600 mt-1">{formatCurrency(cumulativeBalance, currentCurrency, usdToInrRate)}</p>
         </div>
@@ -224,7 +225,7 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="space-y-2">
                 {expenseDataByCategory.map((entry, index) => {
-                  // MODIFIED: Use periodExpenses for correct percentage calculation
+                  // Use periodExpenses for correct percentage calculation
                   const percentage = periodExpenses > 0 ? ((entry.value / periodExpenses) * 100).toFixed(1) : 0;
                   return (
                     <div key={index} className="flex items-center justify-between text-sm">
@@ -264,7 +265,7 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="space-y-2">
                 {expenseDataByPaymentMethod.map((entry, index) => {
-                   // MODIFIED: Use periodExpenses for correct percentage calculation
+                   // Use periodExpenses for correct percentage calculation
                   const percentage = periodExpenses > 0 ? ((entry.value / periodExpenses) * 100).toFixed(1) : 0;
                   return (
                   <div key={index} className="flex items-center justify-between text-sm">

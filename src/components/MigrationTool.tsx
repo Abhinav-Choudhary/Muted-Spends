@@ -80,7 +80,7 @@ const MigrationTool: React.FC<MigrationToolProps> = ({ showToast }) => {
                     type="text"
                     value={oldMigrationName}
                     onChange={(e) => setOldMigrationName(e.target.value)}
-                    placeholder={`e.g., ${fieldToMigrate === 'category' ? 'Groceries-D2' : 'Amex-Old'}`}
+                    placeholder={`e.g.${fieldToMigrate === 'category' ? 'Bills-D2' : 'Amex-Old'}`}
                     className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 />
             </div>
@@ -90,7 +90,7 @@ const MigrationTool: React.FC<MigrationToolProps> = ({ showToast }) => {
                     type="text"
                     value={newMigrationName}
                     onChange={(e) => setNewMigrationName(e.target.value)}
-                    placeholder={`e.g., ${fieldToMigrate === 'category' ? 'Groceries' : 'Amex-New'}`}
+                    placeholder={`e.g.${fieldToMigrate === 'category' ? 'Bills' : 'Amex-New'}`}
                     className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 />
             </div>
