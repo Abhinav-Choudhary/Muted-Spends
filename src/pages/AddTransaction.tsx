@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'; // Added useEffect import
+import { useState, useEffect } from 'react';
 import { addTransaction, uploadReceipt, type AddTransactionData } from '../services/firebaseService';
-import { useLookups } from '../context/LookupContext'; // NEW Import
+import { useLookups } from '../context/LookupContext';
 import { ArrowPathIcon } from '@heroicons/react/24/solid';
 
 interface AddTransactionProps {
@@ -9,7 +9,7 @@ interface AddTransactionProps {
 
 const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
   const [activeForm, setActiveForm] = useState<'income' | 'expense'>('expense');
-  // MODIFIED: Use default names and loading status from context
+  // Use default names and loading status from context
   const { categories, paymentMethods, defaultCategoryName, defaultPaymentMethodName, isLookupsLoading } = useLookups(); 
 
   const getLocalDate = () => {

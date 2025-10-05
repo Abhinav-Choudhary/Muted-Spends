@@ -7,7 +7,7 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ showToast }) => {
-  // MODIFIED: Added 'migration' to the activeTab union type
+  // Added 'migration' to the activeTab union type
   const [activeTab, setActiveTab] = useState<'categories' | 'paymentMethods' | 'migration'>('categories');
 
   return (
@@ -27,7 +27,6 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
         >
           Payment Methods
         </button>
-        {/* NEW: Migration Tool Tab */}
         <button
           onClick={() => setActiveTab('migration')}
           className={`px-4 py-2 text-sm font-medium ${activeTab === 'migration' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500'}`}
@@ -53,7 +52,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
             showToast={showToast} 
           />
         )}
-        {/* NEW: Render Migration Tool Component */}
+        {/* Render Migration Tool Component */}
         {activeTab === 'migration' && (
             <MigrationTool showToast={showToast} />
         )}

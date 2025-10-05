@@ -12,7 +12,6 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
 
   return (
     // --- Modal Backdrop ---
-    // MODIFIED: Added backdrop-blur-sm and changed bg-opacity-60 to bg-opacity-50
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex justify-center items-center p-4"
       onClick={onClose}

@@ -19,12 +19,12 @@ export interface Transaction {
 }
 export type AddTransactionData = Omit<Transaction, 'id' | 'timestamp'> & { date: string };
 
-// NEW: Type definition for dynamic lookup items
+// Type definition for dynamic lookup items
 export interface LookupItem {
     id: string;
     name: string;
     color: string;
-    isDefault: boolean; // NEW: isDefault field
+    isDefault: boolean;
 }
 
 // --- Firebase Configuration ---
@@ -73,10 +73,9 @@ const seedStatusDocRef = (userId: string) => {
     return doc(db, basePath, 'settings', 'seed_status');
 };
 
-// NEW & FIXED: Collection references for dynamic lookups
+// Collection references for dynamic lookups
 const lookupCollectionRef = (userId: string, lookupType: 'categories' | 'paymentMethods') => {
     const isCanvasEnvironment = typeof __app_id !== 'undefined';
-    // CORRECTED PATH: Simplified to 3 segments (collection/document/collection)
     const path = isCanvasEnvironment
         ? `artifacts/${__app_id}/users/${userId}/${lookupType}`
         : `users/${userId}/${lookupType}`;
@@ -84,7 +83,7 @@ const lookupCollectionRef = (userId: string, lookupType: 'categories' | 'payment
 };
 
 // --- Authentication Functions ---
-// MODIFIED: Added logic to include isDefault field
+// Added logic to include isDefault field
 const seedDefaultLookups = async (userId: string) => {
     const seedRef = seedStatusDocRef(userId);
 
@@ -163,7 +162,7 @@ export const setStartingBalance = (amount: number) => {
     return setDoc(docRef, { amount, lastUpdated: Timestamp.now() }, { merge: true });
 };
 
-// NEW: Function to perform bulk migration of category or payment method names
+// Function to perform bulk migration of category or payment method names
 export const runMigrationBatch = async (
     field: 'category' | 'paymentMethod',
     oldName: string,
@@ -312,8 +311,6 @@ export const deleteLookupItem = async (lookupType: 'categories' | 'paymentMethod
     return deleteDoc(docRef);
 };
 
-
-// --- Other Firestore Functions (listenToTransactions, addTransaction, updateTransaction, deleteTransaction, uploadReceipt remain the same) ---
 export const listenToTransactions = (callback: (transactions: Transaction[]) => void, selectedYear: string, selectedMonth: string): Unsubscribe => {
     const user = auth.currentUser;
     if (!user) {
@@ -322,7 +319,7 @@ export const listenToTransactions = (callback: (transactions: Transaction[]) => 
     }
 
     const colRef = transactionsCollectionRef(user.uid);
-    // MODIFIED: Removed date filters from the initial query and moved filtering to the client.
+    // Removed date filters from the initial query and moved filtering to the client.
     // This ensures all transactions are available for cumulative balance calculations in Dashboard.
     // We only sort by timestamp here.
     return onSnapshot(colRef, (snapshot: QuerySnapshot<DocumentData>) => {
@@ -355,7 +352,7 @@ export const addTransaction = (data: AddTransactionData) => {
 
     const colRef = transactionsCollectionRef(user.uid);
 
-    // MODIFIED: Create a date object from the user's input string in the local timezone
+    // Create a date object from the user's input string in the local timezone
     const [year, month, day] = data.date.split('-').map(s => parseInt(s, 10));
     const userDate = new Date(year, month - 1, day);
 
