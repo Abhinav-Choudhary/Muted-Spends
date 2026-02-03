@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   listenToTransactions, listenToSubscriptions, listenToBankAccounts,
   type Transaction, type Subscription,
@@ -160,30 +160,15 @@ const Dashboard: React.FC = () => {
   }, [transactions, selectedYear, selectedMonth]);
 
   // --- CALENDAR LOGIC START ---
-
-  // --- CALENDAR HELPERS ---
-  const handlePrevMonth = () => {
-    setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1));
-  };
-
-  const renderCalendar = () => {
+  // --- CALENDAR DATA PREPARATION (REPLACES renderCalendar) ---
+  // We use useMemo to calculate all the data once, then render it differently for Mobile vs Desktop
+  const calendarData = useMemo(() => {
     const viewYear = calDate.getFullYear();
     const viewMonth = calDate.getMonth() + 1;
-
     const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
     const startDay = new Date(viewYear, viewMonth - 1, 1).getDay();
 
-    const days = [];
-    // Padding
-    for (let i = 0; i < startDay; i++) {
-      days.push(<div key={`pad-${i}`} className="h-32 sm:h-40 bg-slate-50/50 border border-slate-100/50"></div>);
-    }
-
-    // Heatmap Intensity
+    // 1. Calculate Daily Totals & Max Spend
     const dailyTotals: Record<number, number> = {};
     transactions.forEach(t => {
       const d = t.timestamp.toDate();
@@ -193,104 +178,49 @@ const Dashboard: React.FC = () => {
       }
     });
 
-    // --- FIX: SET A REASONABLE BASELINE ---
-    // If USD, baseline is $500. If INR, baseline is ₹40,000 (approx conversion or custom)
-    // This prevents a single $3 coffee from being "100% intensity" if it's the only purchase.
-    const safeRate = usdToInrRate || 91;
+    // 2. Determine Baseline for Heatmap
+    const safeRate = usdToInrRate || 84;
     const baseLine = currentCurrency === 'USD' ? 500 : (500 * safeRate);
-
-    // The max is now either the actual highest spend OR the baseline, whichever is higher.
     const maxDailySpend = Math.max(...Object.values(dailyTotals), baseLine);
 
-    // Generate Days
+    // 3. Build Day Objects
+    const days = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const dayTrans = transactions.filter(t => {
         const d = t.timestamp.toDate();
         return d.getFullYear() === viewYear && (d.getMonth() + 1) === viewMonth && d.getDate() === day && t.type === 'expense';
       });
-
       const daySubs = subscriptions.filter(s => s.include && s.billingDay === day);
       const dayAutopays = bankAccounts.filter(acc =>
-        acc.accountType === 'Credit Card' &&
-        acc.autopayDate &&
-        parseInt(acc.autopayDate) === day
+        acc.accountType === 'Credit Card' && acc.autopayDate && parseInt(acc.autopayDate) === day
       );
 
       const totalSpent = dailyTotals[day] || 0;
-
       const heatIntensity = totalSpent > 0 ? (totalSpent / maxDailySpend) : 0;
-
-      // Range: 0.1 (Lightest) to 0.85 (Darkest)
       const bgOpacity = totalSpent > 0 ? Math.min(Math.max(heatIntensity * 0.9, 0.1), 0.85) : 0;
 
-      // Dynamic text color for readability on dark backgrounds
-      const dateTextColor = bgOpacity > 0.5 ? 'text-white' : (totalSpent > 0 ? 'text-indigo-900' : 'text-slate-400');
-      const badgeBg = bgOpacity > 0.5 ? 'bg-white/20 text-white' : 'bg-white/70 text-slate-600 border border-slate-200';
+      const dateObj = new Date(viewYear, viewMonth - 1, day);
 
-      days.push(
-        <div
-          key={`day-${day}`}
-          className="relative h-36 sm:h-48 border border-slate-100 p-2 flex flex-col transition-all hover:ring-2 hover:ring-indigo-300 hover:z-10 bg-white group"
-        >
-          {/* Heatmap Overlay */}
-          <div className="absolute inset-0 bg-indigo-600 pointer-events-none transition-opacity" style={{ opacity: bgOpacity }}></div>
-
-          {/* Date & Total */}
-          <div className="relative z-10 flex justify-between items-start mb-2">
-            <span className={`text-sm font-bold ${dateTextColor}`}>
-              {day}
-            </span>
-            {totalSpent > 0 && (
-              <span className={`text-[10px] font-bold px-1.5 rounded-sm backdrop-blur-sm ${badgeBg}`}>
-                {formatCurrency(totalSpent, currentCurrency, usdToInrRate).replace(/\..*$/, '')}
-              </span>
-            )}
-          </div>
-
-          {/* Content Container */}
-          <div className="relative z-10 flex-1 flex flex-col gap-1 overflow-hidden">
-
-            {/* 1. Subscriptions & Autopay */}
-            {(daySubs.length > 0 || dayAutopays.length > 0) && (
-              <div className="flex flex-col gap-1 mb-1">
-                {daySubs.map(sub => (
-                  <div key={sub.id} className="bg-purple-100 border border-purple-200 text-purple-700 text-[10px] sm:text-xs px-1.5 py-0.5 rounded flex items-center gap-1.5 font-medium shadow-sm" title={`Sub: ${sub.name}`}>
-                    <ArrowPathIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                    <span className="truncate">{sub.name}</span>
-                  </div>
-                ))}
-                {dayAutopays.map(acc => (
-                  <div key={acc.id} className="bg-red-100 border border-red-200 text-red-700 text-[10px] sm:text-xs px-1.5 py-0.5 rounded flex items-center gap-1.5 font-medium shadow-sm" title={`Autopay: ${acc.bankName}`}>
-                    <CreditCardIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                    <span className="truncate">{acc.bankName}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 2. Transaction Pills */}
-            <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pt-1">
-              {dayTrans.map(t => (
-                <div
-                  key={t.id}
-                  className="flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded-sm w-full truncate border border-transparent hover:border-slate-300 bg-white/60 hover:bg-white transition-colors cursor-default shadow-sm"
-                  title={`${t.description}: ${formatCurrency(t.amount, currentCurrency, usdToInrRate)}`}
-                >
-                  <div
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: categoryColors[t.category || 'Misc'] || '#94a3b8' }}
-                  ></div>
-                  <span className="truncate text-slate-700 font-medium">{t.description}</span>
-                </div>
-              ))}
-            </div>
-
-          </div>
-        </div>
-      );
+      days.push({
+        day,
+        dateObj,
+        totalSpent,
+        bgOpacity,
+        dayTrans,
+        daySubs,
+        dayAutopays,
+        // Styling helpers
+        textColor: bgOpacity > 0.5 ? 'text-white' : (totalSpent > 0 ? 'text-indigo-900' : 'text-slate-400'),
+        badgeBg: bgOpacity > 0.5 ? 'bg-white/20 text-white' : 'bg-white/70 text-slate-600 border border-slate-200'
+      });
     }
-    return days;
-  };
+
+    return { days, startDay, daysInMonth };
+  }, [calDate, transactions, subscriptions, bankAccounts, currentCurrency, usdToInrRate]);
+
+  // --- CALENDAR HANDLERS ---
+  const handlePrevMonth = () => setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1));
+  const handleNextMonth = () => setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1));
 
   // --- CALENDAR LOGIC END ---
 
@@ -532,7 +462,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-      {/* --- HEATMAP CALENDAR SECTION --- */}
+      {/* --- FINANCIAL CALENDAR --- */}
       <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200 mb-8 w-full mt-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div className="flex items-center gap-4">
@@ -563,16 +493,151 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-7 text-center mb-2">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-            <div key={d} className="text-xs font-bold text-slate-400 uppercase tracking-wider">{d}</div>
+        {/* --- DESKTOP VIEW (Grid) --- */}
+        <div className="hidden md:block">
+          <div className="grid grid-cols-7 text-center mb-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+              <div key={d} className="text-xs font-bold text-slate-400 uppercase tracking-wider">{d}</div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 bg-slate-100 border border-slate-100 gap-px">
+            {/* Padding Days */}
+            {Array.from({ length: calendarData.startDay }).map((_, i) => (
+              <div key={`pad-${i}`} className="h-32 lg:h-40 bg-slate-50/50 border border-slate-100/50"></div>
+            ))}
+
+            {/* Calendar Days */}
+            {calendarData.days.map((d) => (
+              <div
+                key={`day-${d.day}`}
+                className="relative h-36 lg:h-48 border border-slate-100 p-2 flex flex-col transition-all hover:ring-2 hover:ring-indigo-300 hover:z-10 bg-white group"
+              >
+                <div className="absolute inset-0 bg-indigo-600 pointer-events-none transition-opacity" style={{ opacity: d.bgOpacity }}></div>
+                <div className="relative z-10 flex justify-between items-start mb-2">
+                  <span className={`text-sm font-bold ${d.textColor}`}>{d.day}</span>
+                  {d.totalSpent > 0 && (
+                    <span className={`text-[10px] font-bold px-1.5 rounded-sm backdrop-blur-sm ${d.badgeBg}`}>
+                      {formatCurrency(d.totalSpent, currentCurrency, usdToInrRate).replace(/\..*$/, '')}
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative z-10 flex-1 flex flex-col gap-1 overflow-hidden">
+                  {(d.daySubs.length > 0 || d.dayAutopays.length > 0) && (
+                    <div className="flex flex-col gap-1 mb-1">
+                      {d.daySubs.map(sub => (
+                        <div key={sub.id} className="bg-purple-100 border border-purple-200 text-purple-700 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1.5 font-medium shadow-sm" title={`Sub: ${sub.name}`}>
+                          <ArrowPathIcon className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{sub.name}</span>
+                        </div>
+                      ))}
+                      {d.dayAutopays.map(acc => (
+                        <div key={acc.id} className="bg-red-100 border border-red-200 text-red-700 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1.5 font-medium shadow-sm" title={`Autopay: ${acc.bankName}`}>
+                          <CreditCardIcon className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{acc.bankName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pt-1">
+                    {d.dayTrans.map(t => (
+                      <div
+                        key={t.id}
+                        className="flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded-sm w-full truncate border border-transparent hover:border-slate-300 bg-white/60 hover:bg-white transition-colors cursor-default shadow-sm"
+                        title={`${t.description}: ${formatCurrency(t.amount, currentCurrency, usdToInrRate)}`}
+                      >
+                        <div
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: categoryColors[t.category || 'Misc'] || '#94a3b8' }}
+                        ></div>
+                        <span className="truncate text-slate-700 font-medium">{t.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* --- MOBILE VIEW (Vertical List) --- */}
+        <div className="md:hidden flex flex-col gap-3">
+          {calendarData.days.map((d) => (
+            <div
+              key={`mob-day-${d.day}`}
+              className="relative overflow-hidden rounded-lg border border-slate-200 shadow-sm"
+            >
+              {/* Heatmap Background */}
+              <div className="absolute inset-0 bg-indigo-600 pointer-events-none transition-opacity" style={{ opacity: d.bgOpacity }}></div>
+
+              <div className="relative z-10 p-3 bg-white/40 backdrop-blur-[2px]">
+                {/* Header Row: Date & Total */}
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-lg font-bold ${d.totalSpent > 0 ? 'text-indigo-900' : 'text-slate-500'}`}>
+                      {d.dateObj.toLocaleString('en-US', { weekday: 'short' })} {d.day}
+                    </span>
+                  </div>
+                  {d.totalSpent > 0 && (
+                    <span className="text-sm font-bold bg-white text-indigo-700 px-2 py-1 rounded shadow-sm">
+                      {formatCurrency(d.totalSpent, currentCurrency, usdToInrRate)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Content Area */}
+                {(d.daySubs.length > 0 || d.dayAutopays.length > 0 || d.dayTrans.length > 0) ? (
+                  <div className="space-y-2">
+                    {/* Recurring Items */}
+                    {(d.daySubs.length > 0 || d.dayAutopays.length > 0) && (
+                      <div className="flex flex-wrap gap-2">
+                        {d.daySubs.map(sub => (
+                          <span key={sub.id} className="bg-purple-100 border border-purple-200 text-purple-700 text-xs px-2 py-1 rounded-full flex items-center gap-1 font-medium shadow-sm">
+                            <ArrowPathIcon className="w-3 h-3" />
+                            {sub.name}
+                          </span>
+                        ))}
+                        {d.dayAutopays.map(acc => (
+                          <span key={acc.id} className="bg-red-100 border border-red-200 text-red-700 text-xs px-2 py-1 rounded-full flex items-center gap-1 font-medium shadow-sm">
+                            <CreditCardIcon className="w-3 h-3" />
+                            {acc.bankName}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Transactions List */}
+                    {d.dayTrans.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {d.dayTrans.map(t => (
+                          <div
+                            key={t.id}
+                            className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-white border border-slate-200 shadow-sm"
+                          >
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: categoryColors[t.category || 'Misc'] || '#94a3b8' }}
+                            ></div>
+                            <span className="font-medium text-slate-700">{t.description}</span>
+                            <span className="text-slate-400 border-l pl-1 ml-1">
+                              {formatCurrency(t.amount, currentCurrency, usdToInrRate).replace(/\..*$/, '')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-400 italic">No activity</div>
+                )}
+              </div>
+            </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 bg-slate-100 border border-slate-100 gap-px">
-          {renderCalendar()}
-        </div>
       </div>
+
     </div>
   );
 };
