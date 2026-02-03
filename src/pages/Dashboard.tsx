@@ -196,7 +196,7 @@ const Dashboard: React.FC = () => {
     // --- FIX: SET A REASONABLE BASELINE ---
     // If USD, baseline is $500. If INR, baseline is ₹40,000 (approx conversion or custom)
     // This prevents a single $3 coffee from being "100% intensity" if it's the only purchase.
-    const safeRate = usdToInrRate || 91; 
+    const safeRate = usdToInrRate || 91;
     const baseLine = currentCurrency === 'USD' ? 500 : (500 * safeRate);
 
     // The max is now either the actual highest spend OR the baseline, whichever is higher.
@@ -494,8 +494,7 @@ const Dashboard: React.FC = () => {
                     dataKey="amount"
                     nameKey="name"
                   >
-                    {subscriptions.map((entry, index) => (
-                      // Use the Dynamic Color Helper
+                    {subscriptions.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={getDynamicColor(index)} stroke="none" />
                     ))}
                   </Pie>
@@ -506,13 +505,7 @@ const Dashboard: React.FC = () => {
                     ]}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
-                  <Legend
-                    layout="vertical"
-                    verticalAlign="middle"
-                    align="right"
-                    iconType="circle"
-                    formatter={(value) => <span className="text-slate-600 font-medium text-sm">{value}</span>}
-                  />
+                  <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" />
                 </PieChart>
               </ResponsiveContainer>
             </div>
