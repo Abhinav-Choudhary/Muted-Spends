@@ -40,6 +40,8 @@ export interface Subscription {
     paymentMethod: string;
     include: boolean;
     lastProcessedDate: string; // Format: "YYYY-MM"
+    billingCycle?: 'monthly' | 'yearly';
+    billingMonth?: number; // 1-12 (Required if yearly)
 }
 
 export const listenToSubscriptions = (callback: (subs: Subscription[]) => void): Unsubscribe => {
@@ -81,6 +83,7 @@ export interface BankAccount {
     accountType: 'Checking' | 'Savings' | 'Credit Card';
     last4Digits: string;
     autopayDate?: string; // "15" (Day of month) or empty
+    statementDate?: string;
 }
 
 export const listenToBankAccounts = (callback: (accounts: BankAccount[]) => void): Unsubscribe => {
@@ -115,13 +118,11 @@ export const updateBankAccount = (id: string, data: Partial<BankAccount>) => {
 // --- Free Automation Logic ---
 export const checkAndProcessSubscriptions = async (userId: string) => {
     const today = new Date();
-    // Current month key (e.g. "2026-02")
     const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const currentDay = today.getDate();
+    const currentMonth = today.getMonth() + 1; // 1-12
 
     const subsRef = collection(db, `users/${userId}/subscriptions`);
-
-    // Get all active subscriptions
     const q = query(subsRef, where("include", "==", true));
     const snapshot = await getDocs(q);
 
@@ -131,26 +132,30 @@ export const checkAndProcessSubscriptions = async (userId: string) => {
     snapshot.docs.forEach((docSnap) => {
         const sub = docSnap.data() as Subscription;
 
-        // Skip if we already marked it as processed in the subscription doc
+        // Default to monthly for backward compatibility
+        const cycle = sub.billingCycle || 'monthly';
+
+        // 1. Check if already processed this month
         if (sub.lastProcessedDate === currentMonthKey) return;
 
-        // Check if billing day has arrived
+        // 2. YEARLY CHECK: If yearly, current month must match billing month
+        if (cycle === 'yearly') {
+            if (!sub.billingMonth || sub.billingMonth !== currentMonth) {
+                return; // Wrong month for this yearly subscription
+            }
+        }
+
+        // 3. DAY CHECK: Check if billing day has arrived
         if (currentDay >= sub.billingDay) {
 
-            // Calculate the transaction date
             const transDate = new Date(today.getFullYear(), today.getMonth(), sub.billingDay);
-            // Handle end-of-month edge cases (e.g. Feb 30 -> Feb 28)
             if (transDate.getMonth() !== today.getMonth()) {
-                transDate.setDate(0);
+                transDate.setDate(0); // Handle Feb 30 -> Feb 28
             }
             const dateString = transDate.toISOString().split('T')[0];
 
-            // --- THE FIX: DETERMINISTIC ID ---
-            // Create a unique ID: "sub" + "subscriptionID" + "date"
-            // Example: sub_abc123_2026-02-15
-            // This guarantees only ONE entry per month, no matter how many times this runs.
+            // Unique ID ensures we don't double charge if script runs multiple times
             const uniqueTransId = `sub_${docSnap.id}_${dateString}`;
-
             const newTransRef = doc(db, `users/${userId}/transactions`, uniqueTransId);
 
             batch.set(newTransRef, {
@@ -162,10 +167,10 @@ export const checkAndProcessSubscriptions = async (userId: string) => {
                 date: dateString,
                 timestamp: Timestamp.fromDate(transDate),
                 isSubscription: true,
-                subscriptionId: docSnap.id // Link back to sub
+                subscriptionId: docSnap.id
             });
 
-            // Update the subscription so we don't check again
+            // Mark as processed for this month (works for yearly too, effectively marking this 'year-month' as done)
             const subRef = doc(db, `users/${userId}/subscriptions`, docSnap.id);
             batch.update(subRef, { lastProcessedDate: currentMonthKey });
 

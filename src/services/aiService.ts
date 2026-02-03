@@ -11,7 +11,7 @@ export const debugAvailableModels = async () => {
         const data = await response.json();
 
         if (data.error) {
-            console.error("❌ API Error:", data.error);
+            console.error("API Error:", data.error);
             return;
         }
 
@@ -29,7 +29,7 @@ export const debugAvailableModels = async () => {
 
         console.log("💡 TRY USING ONE OF THE NAMES FROM THE TABLE ABOVE IN YOUR CODE.");
     } catch (error) {
-        console.error("❌ Network Error checking models:", error);
+        console.error("Network Error checking models:", error);
     }
 };
 
@@ -51,7 +51,7 @@ export const analyzeReceipt = async (
       2. date: The date in "YYYY-MM-DD" format. If not found, use today's date.
       3. description: A short merchant name with brief description.
       4. category: Choose the best fit from this exact list: ${JSON.stringify(categories)}. If unsure, pick the closest fit or 'Misc'.
-      5. paymentMethod: Choose the best fit from this exact list: ${JSON.stringify(paymentMethods)}. If unsure, pick 'Other'.
+      5. paymentMethod: Choose the best fit from this exact list: ${JSON.stringify(paymentMethods)}. Try to find the payment method in the receipt and also check substrings for that payment method, if multiple exists with the substrings, pick the first option. For example, if the receipt says *1000 Mastercard and there's a payment method called Zolve Mastercard, that would be the payment method. Similarly, if the receipt says American Express, and ther's a payment method called Amex, then Amex is the pick. If unsure, pick 'Other'.
 
       Output Format:
       {
