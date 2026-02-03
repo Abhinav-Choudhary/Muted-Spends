@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { listenToBankAccounts, addBankAccount, deleteBankAccount, updateBankAccount, type BankAccount } from '../services/firebaseService';
-import { TrashIcon, CreditCardIcon, BuildingLibraryIcon, BanknotesIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, CreditCardIcon, BuildingLibraryIcon, BanknotesIcon, PencilSquareIcon, DocumentTextIcon } from '@heroicons/react/24/outline'; // Added DocumentTextIcon
 
-// Extended interface locally to include colorTheme
 interface ExtendedBankAccount extends BankAccount {
     colorTheme?: string;
 }
@@ -16,6 +15,7 @@ const BankAccounts = () => {
     const [type, setType] = useState<BankAccount['accountType']>('Checking');
     const [last4, setLast4] = useState('');
     const [autopay, setAutopay] = useState('');
+    const [statementDate, setStatementDate] = useState(''); // NEW STATE
     const [colorTheme, setColorTheme] = useState('slate');
 
     useEffect(() => {
@@ -31,6 +31,7 @@ const BankAccounts = () => {
             accountType: type,
             last4Digits: last4,
             autopayDate: autopay,
+            statementDate: statementDate, // Save new field
             colorTheme
         };
 
@@ -53,9 +54,8 @@ const BankAccounts = () => {
         setType(acc.accountType);
         setLast4(acc.last4Digits);
         setAutopay(acc.autopayDate || '');
+        setStatementDate(acc.statementDate || ''); // Load existing
         setColorTheme(acc.colorTheme || 'slate');
-
-        // On mobile, scroll up to form
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -63,11 +63,12 @@ const BankAccounts = () => {
         setBankName('');
         setLast4('');
         setAutopay('');
+        setStatementDate('');
         setColorTheme('slate');
         setEditingId(null);
     };
 
-    // Color Definitions
+    // Color Definitions (unchanged)
     const colorThemes: Record<string, string> = {
         slate: 'from-slate-700 to-slate-900',
         blue: 'from-blue-700 to-indigo-900',
@@ -77,7 +78,6 @@ const BankAccounts = () => {
         gold: 'from-amber-500 to-orange-700',
     };
 
-    // Helper to get the correct icon based on account type (Backdrop only)
     const getBackdropIcon = (type: string) => {
         const className = "w-32 h-32";
         switch (type) {
@@ -90,8 +90,6 @@ const BankAccounts = () => {
 
     return (
         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-            {/* Input Column */}
             <div className="lg:col-span-1">
                 <div className={`p-6 rounded-xl shadow-sm border sticky top-6 transition-colors ${editingId ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
                     <div className="flex justify-between items-center mb-4">
@@ -137,12 +135,20 @@ const BankAccounts = () => {
                         </div>
 
                         {type === 'Credit Card' && (
-                            <div className="bg-white/50 p-3 rounded-lg border border-slate-200">
-                                <label className="text-xs font-bold text-slate-600 uppercase">Autopay Date</label>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-sm text-slate-600">Day</span>
-                                    <input type="number" min="1" max="31" value={autopay} onChange={e => setAutopay(e.target.value)} className="w-16 p-2 border border-slate-300 rounded text-center" />
-                                    <span className="text-sm text-slate-600">of month</span>
+                            <div className="bg-white/50 p-3 rounded-lg border border-slate-200 space-y-3">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600 uppercase">Autopay Date</label>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-sm text-slate-600">Day</span>
+                                        <input type="number" min="1" max="31" value={autopay} onChange={e => setAutopay(e.target.value)} className="w-16 p-2 border border-slate-300 rounded text-center" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600 uppercase">Statement Date</label>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-sm text-slate-600">Day</span>
+                                        <input type="number" min="1" max="31" value={statementDate} onChange={e => setStatementDate(e.target.value)} className="w-16 p-2 border border-slate-300 rounded text-center" />
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -164,7 +170,6 @@ const BankAccounts = () => {
 
                         return (
                             <div key={acc.id} className={`relative p-6 rounded-xl text-white shadow-lg overflow-hidden group bg-gradient-to-br transition-all ${themeClass} ${isEditing ? 'ring-4 ring-indigo-400 scale-[1.02]' : ''}`}>
-
                                 <div className="absolute -right-6 -top-6 opacity-20 pointer-events-none">
                                     {getBackdropIcon(acc.accountType)}
                                 </div>
@@ -189,12 +194,21 @@ const BankAccounts = () => {
                                             <div className="text-2xl font-mono tracking-widest opacity-90 text-white">
                                                 •••• {acc.last4Digits || '••••'}
                                             </div>
-                                            {acc.autopayDate && (
-                                                <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 text-xs font-medium backdrop-blur-md border border-white/10">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                                                    Autopay: {acc.autopayDate}th
-                                                </div>
-                                            )}
+
+                                            <div className="flex gap-2 mt-2 flex-wrap">
+                                                {acc.autopayDate && (
+                                                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 text-xs font-medium backdrop-blur-md border border-white/10">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                                                        Auto: {acc.autopayDate}th
+                                                    </div>
+                                                )}
+                                                {acc.statementDate && (
+                                                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 text-xs font-medium backdrop-blur-md border border-white/10">
+                                                        <DocumentTextIcon className="w-3 h-3 text-blue-200" />
+                                                        Stmt: {acc.statementDate}th
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <button
