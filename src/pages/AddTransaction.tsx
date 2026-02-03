@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { addTransaction, uploadReceipt, type AddTransactionData } from '../services/firebaseService';
+import { analyzeReceipt } from '../services/aiService';
 import { useLookups } from '../context/LookupContext';
-import { ArrowPathIcon } from '@heroicons/react/24/solid';
+import { ArrowPathIcon, CameraIcon } from '@heroicons/react/24/solid';
 
 interface AddTransactionProps {
   showToast: (message: string, type: 'income' | 'expense') => void;
@@ -10,7 +11,7 @@ interface AddTransactionProps {
 const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
   const [activeForm, setActiveForm] = useState<'income' | 'expense'>('expense');
   // Use default names and loading status from context
-  const { categories, paymentMethods, defaultCategoryName, defaultPaymentMethodName, isLookupsLoading } = useLookups(); 
+  const { categories, paymentMethods, defaultCategoryName, defaultPaymentMethodName, isLookupsLoading } = useLookups();
 
   const getLocalDate = () => {
     const now = new Date();
@@ -28,11 +29,13 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
   const [paymentMethod, setPaymentMethod] = useState('Other');
   const [receipt, setReceipt] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
 
   // Synchronize internal state with context defaults when they load or change
   useEffect(() => {
     setCategory(defaultCategoryName);
     setPaymentMethod(defaultPaymentMethodName);
+    // debugAvailableModels();
   }, [defaultCategoryName, defaultPaymentMethodName]);
 
   const resetForm = () => {
@@ -90,6 +93,37 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
     }
   };
 
+  const handleReceiptScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Set the file for upload later
+    setReceipt(file);
+    setIsScanning(true);
+
+    try {
+      // Pass the user's categories and payment methods to the AI
+      const categoryNames = categories.map(c => c.name);
+      const paymentNames = paymentMethods.map(p => p.name);
+
+      const data = await analyzeReceipt(file, categoryNames, paymentNames);
+
+      // Auto-fill form
+      if (data.amount) setAmount(data.amount.toString());
+      if (data.date) setDate(data.date);
+      if (data.description) setDescription(data.description);
+      if (data.category && categoryNames.includes(data.category)) setCategory(data.category);
+      if (data.paymentMethod && paymentNames.includes(data.paymentMethod)) setPaymentMethod(data.paymentMethod);
+
+      showToast('Receipt scanned & applied!', 'expense');
+    } catch (error) {
+      console.error(error);
+      showToast('Failed to analyze receipt', 'expense');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   if (isLookupsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
@@ -118,6 +152,29 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* <div className="mb-6">
+          <label className="block text-sm font-medium text-slate-700 mb-2">Scan Receipt (AI)</label>
+          <div className="flex items-center gap-4">
+            <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-200">
+              {isScanning ? (
+                <ArrowPathIcon className="w-5 h-5 animate-spin" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
+              <span className="font-medium">{isScanning ? 'Analyzing...' : 'Upload & Scan'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleReceiptScan}
+              />
+            </label>
+            {receipt && <span className="text-sm text-green-600">File attached</span>}
+          </div>
+        </div> */}
         <div>
           <label htmlFor="description" className="block text-sm font-medium text-slate-700">
             {activeForm === 'income' ? 'Source' : 'Description'}
@@ -168,7 +225,7 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
                 className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 {categories.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
+                  <option key={c.id} value={c.name}>{c.name}</option>
                 ))}
               </select>
             </div>
@@ -181,9 +238,20 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
                 className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 {paymentMethods.map(p => (
-                    <option key={p.id} value={p.name}>{p.name}</option>
+                  <option key={p.id} value={p.name}>{p.name}</option>
                 ))}
               </select>
+            </div>
+            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex items-center justify-between transition-all">
+              <div className="text-sm text-indigo-800">
+                <span className="font-semibold block">Have a receipt?</span>
+                Scan it to auto-fill details.
+              </div>
+              <label className="cursor-pointer flex items-center gap-2 bg-white px-3 py-2 rounded-md border border-indigo-200 text-indigo-600 font-medium hover:bg-indigo-50 shadow-sm transition-all">
+                {isScanning ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CameraIcon className="w-5 h-5" />}
+                <span>{isScanning ? 'Scanning...' : 'Scan'}</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleReceiptScan} disabled={isScanning} />
+              </label>
             </div>
           </>
         )}
