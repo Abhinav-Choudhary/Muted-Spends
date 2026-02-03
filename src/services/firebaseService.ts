@@ -1,7 +1,10 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import type { User as FirebaseUser } from "firebase/auth";
-import { getFirestore, collection, addDoc, onSnapshot, Timestamp, deleteDoc, doc, QuerySnapshot, QueryDocumentSnapshot, updateDoc, setDoc, getDoc, getDocs, query, where, writeBatch } from "firebase/firestore";
+import {
+    getFirestore, collection, addDoc, onSnapshot, Timestamp, deleteDoc, doc, QuerySnapshot,
+    QueryDocumentSnapshot, updateDoc, setDoc, getDoc, getDocs, query, where, writeBatch
+} from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { Unsubscribe, DocumentData } from "firebase/firestore";
 import { defaultCategories, defaultPaymentMethods } from '../context/LookupContext'; // Import defaults
@@ -26,6 +29,156 @@ export interface LookupItem {
     color: string;
     isDefault: boolean;
 }
+
+// --- Subscriptions Functions ---
+export interface Subscription {
+    id: string;
+    name: string;
+    amount: number;
+    billingDay: number; // 1-31
+    category: string;
+    paymentMethod: string;
+    include: boolean;
+    lastProcessedDate: string; // Format: "YYYY-MM"
+}
+
+export const listenToSubscriptions = (callback: (subs: Subscription[]) => void): Unsubscribe => {
+    const user = auth.currentUser;
+    if (!user) { callback([]); return () => { }; }
+
+    return onSnapshot(collection(db, `users/${user.uid}/subscriptions`), (snapshot) => {
+        const subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subscription));
+        callback(subs);
+    });
+};
+
+export const addSubscription = (data: Omit<Subscription, 'id' | 'lastProcessedDate'>) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated");
+
+    return addDoc(collection(db, `users/${user.uid}/subscriptions`), {
+        ...data,
+        lastProcessedDate: '' // Start fresh
+    });
+};
+
+export const updateSubscription = (id: string, data: Partial<Subscription>) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated");
+    return updateDoc(doc(db, `users/${user.uid}/subscriptions`, id), data);
+};
+
+export const deleteSubscription = (id: string) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated");
+    return deleteDoc(doc(db, `users/${user.uid}/subscriptions`, id));
+};
+
+// --- Bank Accounts Functions ---
+export interface BankAccount {
+    id: string;
+    bankName: string;
+    accountType: 'Checking' | 'Savings' | 'Credit Card';
+    last4Digits: string;
+    autopayDate?: string; // "15" (Day of month) or empty
+}
+
+export const listenToBankAccounts = (callback: (accounts: BankAccount[]) => void): Unsubscribe => {
+    const user = auth.currentUser;
+    if (!user) { callback([]); return () => { }; }
+
+    return onSnapshot(collection(db, `users/${user.uid}/bankAccounts`), (snapshot) => {
+        const accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BankAccount));
+        callback(accounts);
+    });
+};
+
+export const addBankAccount = (data: Omit<BankAccount, 'id'>) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated");
+    return addDoc(collection(db, `users/${user.uid}/bankAccounts`), data);
+};
+
+export const deleteBankAccount = (id: string) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated");
+    return deleteDoc(doc(db, `users/${user.uid}/bankAccounts`, id));
+};
+
+export const updateBankAccount = (id: string, data: Partial<BankAccount>) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated");
+    const docRef = doc(db, `users/${user.uid}/bankAccounts`, id);
+    return updateDoc(docRef, data);
+};
+
+// --- Free Automation Logic ---
+export const checkAndProcessSubscriptions = async (userId: string) => {
+    const today = new Date();
+    // Current month key (e.g. "2026-02")
+    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const currentDay = today.getDate();
+
+    const subsRef = collection(db, `users/${userId}/subscriptions`);
+
+    // Get all active subscriptions
+    const q = query(subsRef, where("include", "==", true));
+    const snapshot = await getDocs(q);
+
+    const batch = writeBatch(db);
+    let updatesCount = 0;
+
+    snapshot.docs.forEach((docSnap) => {
+        const sub = docSnap.data() as Subscription;
+
+        // Skip if we already marked it as processed in the subscription doc
+        if (sub.lastProcessedDate === currentMonthKey) return;
+
+        // Check if billing day has arrived
+        if (currentDay >= sub.billingDay) {
+
+            // Calculate the transaction date
+            const transDate = new Date(today.getFullYear(), today.getMonth(), sub.billingDay);
+            // Handle end-of-month edge cases (e.g. Feb 30 -> Feb 28)
+            if (transDate.getMonth() !== today.getMonth()) {
+                transDate.setDate(0);
+            }
+            const dateString = transDate.toISOString().split('T')[0];
+
+            // --- THE FIX: DETERMINISTIC ID ---
+            // Create a unique ID: "sub" + "subscriptionID" + "date"
+            // Example: sub_abc123_2026-02-15
+            // This guarantees only ONE entry per month, no matter how many times this runs.
+            const uniqueTransId = `sub_${docSnap.id}_${dateString}`;
+
+            const newTransRef = doc(db, `users/${userId}/transactions`, uniqueTransId);
+
+            batch.set(newTransRef, {
+                type: 'expense',
+                description: sub.name,
+                amount: sub.amount,
+                category: sub.category,
+                paymentMethod: sub.paymentMethod,
+                date: dateString,
+                timestamp: Timestamp.fromDate(transDate),
+                isSubscription: true,
+                subscriptionId: docSnap.id // Link back to sub
+            });
+
+            // Update the subscription so we don't check again
+            const subRef = doc(db, `users/${userId}/subscriptions`, docSnap.id);
+            batch.update(subRef, { lastProcessedDate: currentMonthKey });
+
+            updatesCount++;
+        }
+    });
+
+    if (updatesCount > 0) {
+        await batch.commit();
+        return updatesCount;
+    }
+    return 0;
+};
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -178,7 +331,7 @@ export const runMigrationBatch = async (
     if (snapshot.empty) return 0;
 
     const batch = writeBatch(db);
-    
+
     snapshot.docs.forEach((docSnap) => {
         // Only update if the transaction name is the old name
         batch.update(doc(transactionsRef, docSnap.id), {

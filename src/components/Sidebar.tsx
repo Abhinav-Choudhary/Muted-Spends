@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 // MODIFIED: Imported DocumentArrowDownIcon
-import { HomeIcon, CurrencyDollarIcon, PlusIcon, BoltIcon, ArrowRightEndOnRectangleIcon, DocumentArrowDownIcon, Cog8ToothIcon } from '@heroicons/react/24/solid';
+import {
+  HomeIcon, CurrencyDollarIcon, PlusIcon, CreditCardIcon, QueueListIcon,
+  BoltIcon, ArrowRightEndOnRectangleIcon, DocumentArrowDownIcon, Cog8ToothIcon
+} from '@heroicons/react/24/solid';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 interface SidebarProps {
@@ -28,8 +31,8 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onSignOut, isSidebarOpen, setIs
   const getLinkClass = (path: string) => {
     const currentPath = location.pathname === '/' ? '/dashboard' : location.pathname;
     return `flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer ${currentPath === path
-        ? 'bg-indigo-100 text-indigo-600 font-semibold'
-        : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-600'
+      ? 'bg-indigo-100 text-indigo-600 font-semibold'
+      : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-600'
       }`;
   };
 
@@ -62,6 +65,18 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onSignOut, isSidebarOpen, setIs
             <Link to="/add" className={getLinkClass('/add')} onClick={() => setIsSidebarOpen(false)}>
               <PlusIcon className="w-5 h-5" />
               Add Transaction
+            </Link>
+          </li>
+          <li>
+            <Link to="/subscriptions" className={getLinkClass('/subscriptions')} onClick={() => setIsSidebarOpen(false)}>
+              <QueueListIcon className="w-5 h-5" />
+              Subscriptions
+            </Link>
+          </li>
+          <li>
+            <Link to="/accounts" className={getLinkClass('/accounts')} onClick={() => setIsSidebarOpen(false)}>
+              <CreditCardIcon className="w-5 h-5" />
+              Accounts
             </Link>
           </li>
           <li>
