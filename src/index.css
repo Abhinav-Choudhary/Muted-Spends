@@ -13,3 +13,14 @@ body {
 .switch input:checked + .slider:before {
   transform: translateX(26px);
 }
+
+/* Ensure all form elements share the same height/font logic */
+input, select, textarea {
+  font-family: 'Inter', sans-serif;
+  @apply text-slate-800;
+}
+
+/* Fix for iOS date picker styling */
+input[type="date"] {
+  min-height: 2.5rem; /* Matches h-10 */
+}
