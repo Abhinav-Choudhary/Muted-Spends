@@ -209,7 +209,8 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ showToast }) => {
             id="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            /* Added h-[38px] to match standard text input heights and leading-tight */
+            className="mt-1 block w-full px-3 h-[38px] bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none"
             required
           />
         </div>
